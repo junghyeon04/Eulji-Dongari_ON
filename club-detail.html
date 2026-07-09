@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>동아리 상세 | 동아리 ON</title>
+  <link rel="stylesheet" href="./css/style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <a href="./index.html" class="logo-wrap" aria-label="동아리 ON 홈">
+      <img src="./images/eulji-emblem.svg" alt="을지대학교 엠블럼" class="header-emblem" />
+      <span>동아리 ON</span>
+    </a>
+
+    <nav class="gnb" aria-label="주요 메뉴">
+      <a href="./index.html">홈</a>
+      <a href="./club-list.html" class="is-active">동아리 탐색</a>
+      <a href="./apply.html">동아리 지원</a>
+      <a href="./mypage.html">마이페이지</a>
+    </nav>
+  </header>
+
+  <main class="club-detail-page">
+    <section class="detail-container">
+      <nav class="detail-breadcrumb" aria-label="현재 위치">
+        <a href="./index.html">⌂</a>
+        <span>›</span>
+        <a href="./club-list.html">동아리 탐색</a>
+        <span>›</span>
+        <strong id="breadcrumbClubName">멋쟁이사자처럼</strong>
+      </nav>
+
+      <section class="detail-hero-card">
+        <div class="detail-cover">
+          <div class="detail-cover-title">
+            <h1 id="detailClubName">멋쟁이사자처럼</h1>
+            <p id="detailShortDescription">코딩으로 세상을 바꾸는 대학생 개발자 커뮤니티</p>
+          </div>
+        </div>
+
+        <div class="detail-hero-body">
+          <div class="detail-logo-box">
+            <img src="./images/likelion-poster.png" alt="동아리 대표 이미지" onerror="this.style.display='none'; this.parentElement.classList.add('is-empty');" />
+          </div>
+
+          <dl class="detail-summary">
+            <div>
+              <dt>기타</dt>
+              <dd>분야</dd>
+            </div>
+            <div>
+              <dt>설립연도</dt>
+              <dd>2020년</dd>
+            </div>
+            <div>
+              <dt>활동지역</dt>
+              <dd>성남캠퍼스</dd>
+            </div>
+            <div>
+              <dt>SNS</dt>
+              <dd class="sns-mark"><img src="./images/instagram.svg" alt="인스타그램" /></dd>
+            </div>
+          </dl>
+
+          <div class="detail-actions">
+            <button type="button" class="detail-scrap-btn" id="detailScrapBtn">
+              <img src="./images/checkbox.svg" alt="" />
+              <span>스크랩</span>
+            </button>
+            <a href="./apply.html?clubId=1" class="detail-apply-btn" data-require-login>지원하기</a>
+          </div>
+
+          <div class="admin-club-tools" id="adminClubTools">
+            <button type="button" data-admin-action="edit">동아리 정보 수정</button>
+            <button type="button" data-admin-action="record">활동 기록 추가</button>
+            <button type="button" data-admin-action="delete">동아리 삭제</button>
+          </div>
+        </div>
+      </section>
+
+      <nav class="detail-tabs" aria-label="동아리 상세 메뉴">
+        <button type="button" class="is-active" data-detail-tab="intro">소개</button>
+        <button type="button" data-detail-tab="activity">활동</button>
+        <button type="button" data-detail-tab="board">게시판</button>
+        <button type="button" data-detail-tab="members">멤버</button>
+      </nav>
+
+      <section class="detail-panel is-active" data-detail-panel="intro">
+        <article class="detail-content-card intro-panel">
+          <section class="detail-block">
+            <h2>동아리 소개</h2>
+            <p>
+              멋쟁이사자처럼은 비전공자도 함께 배우고 성장할 수 있는 대학생 개발자 커뮤니티입니다.
+              웹/앱 개발, AI, 데이터 등 다양한 분야를 공부하고 프로젝트를 통해 실력을 쌓으며,
+              IT로 세상을 변화시키는 경험을 만듭니다.
+            </p>
+
+            <div class="detail-tags">
+              <span>#앱개발</span>
+              <span>#웹개발</span>
+              <span>#AI</span>
+              <span>#스터디</span>
+              <span>#디자인</span>
+              <span>#해커톤</span>
+            </div>
+          </section>
+
+          <section class="detail-block recruit-info">
+            <h2>모집정보</h2>
+            <dl>
+              <div>
+                <dt>모집 대상</dt>
+                <dd>을지대학교 성남캠퍼스 재학생</dd>
+              </div>
+              <div>
+                <dt>모집 기간</dt>
+                <dd><strong class="d-day">D-21</strong> 2026.07.06~07.29</dd>
+              </div>
+              <div>
+                <dt>활동 기간</dt>
+                <dd>2026년 8월~2027년 3월</dd>
+              </div>
+              <div>
+                <dt>활동 요일/시간</dt>
+                <dd>매주 목요일, 프로젝트는 팀별 상이</dd>
+              </div>
+              <div>
+                <dt>활동 내용</dt>
+                <dd>서비스 개발 및 프로젝트 진행 / IT 실무 역량 강화 스터디 / 해커톤 및 동아리 내외부 네트워킹</dd>
+              </div>
+              <div>
+                <dt>모집 일정</dt>
+                <dd>서류모집 → 1차 합격 발표 → 2차 면접 → 최종합격자 발표</dd>
+              </div>
+            </dl>
+          </section>
+
+          <section class="detail-block poster-stack">
+            <h2>모집 포스터</h2>
+            <div class="poster-large">
+              <img src="./images/likelion-poster.png" alt="멋쟁이사자처럼 모집 포스터" onerror="this.style.display='none'; this.parentElement.classList.add('is-empty');" />
+              <p>포스터 이미지를 images/likelion-poster.png로 넣으면 여기에 표시됩니다.</p>
+            </div>
+          </section>
+        </article>
+      </section>
+
+      <section class="detail-panel" data-detail-panel="activity">
+        <article class="detail-content-card activity-panel">
+          <section class="detail-block">
+            <h2>주요 활동</h2>
+            <ol class="activity-list">
+              <li>정기 스터디 및 세미나</li>
+              <li>팀 프로젝트 활동</li>
+              <li>해커톤 참여</li>
+              <li>IT 컨퍼런스 및 외부 행사</li>
+              <li>멘토링 및 네트워킹</li>
+            </ol>
+          </section>
+
+          <section class="detail-block">
+            <h2>연간 활동 정보</h2>
+            <p class="muted-text">활동은 동아리 상황에 따라 달라질 수 있습니다.</p>
+
+            <div class="timeline">
+              <div><strong>7~8월</strong><span>아기사자 모집</span></div>
+              <div><strong>9월</strong><span>스터디 & 팀 프로젝트</span></div>
+              <div><strong>10월</strong><span>공모전</span></div>
+              <div><strong>11~12월</strong><span>멋쟁이사자처럼 미니프로젝트</span></div>
+              <div><strong>1~2월</strong><span>해커톤</span></div>
+              <div><strong>3월</strong><span>해단식</span></div>
+            </div>
+          </section>
+
+          <section class="detail-block">
+            <div class="block-head">
+              <h2>활동 사진</h2>
+              <button type="button">더보기 ›</button>
+            </div>
+
+            <div class="activity-photo-grid">
+              <article>
+                <div class="activity-photo"></div>
+                <h3>앱 개발 스터디</h3>
+                <p>2026.04.07</p>
+              </article>
+              <article>
+                <div class="activity-photo"></div>
+                <h3>미니프로젝트 최종 발표</h3>
+                <p>2026.05.02</p>
+              </article>
+              <article>
+                <div class="activity-photo"></div>
+                <h3>해커톤 참여</h3>
+                <p>2026.06.21</p>
+              </article>
+            </div>
+          </section>
+
+          <section class="detail-block">
+            <div class="block-head">
+              <h2>부원 후기</h2>
+              <button type="button">더보기 ›</button>
+            </div>
+
+            <div class="review-grid">
+              <article>
+                <strong>김*현 ㅣ 디자인</strong>
+                <p>다양한 사람들과 협업할 수 있는 배움이 많고 재미있는 동아리라고 생각해요.</p>
+              </article>
+              <article>
+                <strong>안*아 ㅣ 디자인</strong>
+                <p>팀 프로젝트를 통해 혼자서는 쉽게 해보지 못할 경험을 직접 해볼 수 있었습니다.</p>
+              </article>
+              <article>
+                <strong>박*진 ㅣ 백엔드</strong>
+                <p>API와 데이터베이스 구조를 설계하면서 서비스 흐름을 이해할 수 있었습니다.</p>
+              </article>
+            </div>
+          </section>
+        </article>
+      </section>
+
+      <section class="detail-panel" data-detail-panel="board">
+        <article class="detail-content-card board-panel" id="boardListPanel">
+          <p class="board-desc">멋쟁이사자처럼의 공지, 자료, 질문을 확인할 수 있습니다.</p>
+
+          <div class="board-toolbar">
+            <div class="board-category-tabs">
+              <button type="button" class="is-active" data-board-filter="ALL">전체</button>
+              <button type="button" data-board-filter="NOTICE">공지</button>
+              <button type="button" data-board-filter="MATERIAL">자료</button>
+              <button type="button" data-board-filter="QUESTION">질문</button>
+            </div>
+
+            <button type="button" class="board-write-btn" id="openWriteForm">글쓰기</button>
+          </div>
+
+          <form class="board-search">
+            <input type="text" id="boardSearchInput" placeholder="게시글을 검색해보세요" />
+            <button type="submit" aria-label="검색">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="10.5" cy="10.5" r="6.2"></circle>
+                <path d="M15.2 15.2 21 21"></path>
+              </svg>
+            </button>
+          </form>
+
+          <div class="board-table-wrap">
+            <table class="board-table">
+              <thead>
+                <tr>
+                  <th>번호</th>
+                  <th>분류</th>
+                  <th>제목</th>
+                  <th>작성자</th>
+                  <th>날짜</th>
+                  <th>조회</th>
+                </tr>
+              </thead>
+              <tbody id="boardTableBody"></tbody>
+            </table>
+          </div>
+
+          <div class="pagination">1</div>
+        </article>
+
+        <article class="detail-content-card board-write-panel" id="boardWritePanel">
+          <button type="button" class="back-link" id="closeWriteForm">‹ 게시판</button>
+          <h2>게시글 작성</h2>
+
+          <form class="board-form">
+            <div class="form-row">
+              <label>분류 <span>*</span></label>
+              <div class="post-category-tabs" id="postCategoryTabs"></div>
+              <p class="form-help" id="categoryHelp">일반 회원은 질문만 작성할 수 있습니다.</p>
+            </div>
+
+            <div class="form-row">
+              <label for="postTitle">제목 <span>*</span></label>
+              <input type="text" id="postTitle" />
+            </div>
+
+            <div class="form-row">
+              <label>작성자 <span>*</span></label>
+              <input type="text" id="postAuthor" value="김*현" disabled />
+            </div>
+
+            <div class="form-row">
+              <label for="postContent">내용 <span>*</span></label>
+              <textarea id="postContent" maxlength="2000"></textarea>
+              <small id="postCount">0/2000자</small>
+            </div>
+
+            <div class="form-row">
+              <label>첨부파일</label>
+              <div class="file-drop">
+                <p>파일을 드래그하거나 클릭하여 첨부해주세요.</p>
+                <span>최대 10MB / 최대 5개</span>
+              </div>
+            </div>
+
+            <div class="form-buttons">
+              <button type="button" class="line-btn" id="cancelWrite">취소</button>
+              <button type="button" class="line-btn">임시저장</button>
+              <button type="submit" class="submit-btn-small">등록하기</button>
+            </div>
+          </form>
+        </article>
+
+        <article class="detail-content-card board-post-panel" id="boardPostPanel">
+          <button type="button" class="back-link" id="closePostDetail">‹ 게시판</button>
+          <h2 id="postDetailTitle">2026년 2학기 아기사자 모집</h2>
+
+          <div class="post-meta">
+            <span>작성자 <strong id="postDetailAuthor">운영진</strong></span>
+            <span>작성일 <strong id="postDetailDate">2026.07.08</strong></span>
+            <span>조회 <strong id="postDetailViews">128</strong></span>
+          </div>
+
+          <div class="post-body">
+            <p>
+              안녕하세요, 멋쟁이사자처럼 을지대학교 운영진입니다!
+              <br /><br />
+              멋쟁이사자처럼에서 함께 성장할 2026년 2학기 아기사자를 모집합니다.
+              개발에 관심 있는 을지대학교 재학생 여러분의 많은 관심 부탁드립니다.
+              <br /><br />
+              자세한 사항은 카드뉴스를 참고해주세요!
+            </p>
+
+            <div class="poster-large post-poster">
+              <img src="./images/likelion-poster.png" alt="모집 공지 이미지" onerror="this.style.display='none'; this.parentElement.classList.add('is-empty');" />
+              <p>공지 이미지를 images/likelion-poster.png로 넣으면 여기에 표시됩니다.</p>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <section class="detail-panel" data-detail-panel="members">
+        <article class="detail-content-card members-panel member-contact-panel">
+          <h2>멋쟁이사자처럼</h2>
+
+          <dl class="member-contact-list">
+            <div>
+              <dt>회장</dt>
+              <dd>김성민</dd>
+            </div>
+
+            <div>
+              <dt>전화번호</dt>
+              <dd>010-1234-5678</dd>
+            </div>
+
+            <div>
+              <dt>이메일</dt>
+              <dd>naver12@naver.com</dd>
+            </div>
+          </dl>
+        </article>
+      </section>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-brand">
+      <img src="./images/eulji-logo-ko.svg" alt="을지대학교 로고" />
+      <h2>동아리 ON</h2>
+      <p>© 2026 EULJI UNIVERSITY. <span>All rights reserved.</span></p>
+    </div>
+
+    <div class="footer-menu">
+      <ul>
+        <li><a href="./club-list.html">동아리 탐색</a></li>
+        <li><a href="./apply.html">동아리 지원</a></li>
+        <li><a href="./mypage.html">마이페이지</a></li>
+        <li><a href="./login.html">로그인 / 회원가입</a></li>
+      </ul>
+      <ul>
+        <li><a href="./guide.html">이용 안내</a></li>
+        <li><a href="./inquiry.html">문의</a></li>
+      </ul>
+    </div>
+  </footer>
+
+  <script src="./js/auth.js"></script>
+  <script src="./js/club-detail.js"></script>
+</body>
+</html>

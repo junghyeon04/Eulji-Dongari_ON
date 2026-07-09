@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>로그인 | 동아리 ON</title>
+  <link rel="stylesheet" href="./css/style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <a href="./index.html" class="logo-wrap" aria-label="동아리 ON 홈">
+      <img src="./images/eulji-emblem.svg" alt="을지대학교 엠블럼" class="header-emblem" />
+      <span>동아리 ON</span>
+    </a>
+
+    <nav class="gnb" aria-label="주요 메뉴">
+      <a href="./index.html">홈</a>
+      <a href="./club-list.html">동아리 탐색</a>
+      <a href="./apply.html">동아리 지원</a>
+      <a href="./mypage.html" class="is-active">마이페이지</a>
+    </nav>
+  </header>
+
+  <main class="login-page">
+    <section class="login-section">
+      <h1>로그인 후<br /><span>동아리 ON 서비스</span>를 이용할 수 있습니다.</h1>
+
+      <form class="login-form" id="loginForm">
+        <input type="text" id="loginId" placeholder="아이디" autocomplete="username" />
+        <input type="password" id="loginPassword" placeholder="비밀번호" autocomplete="current-password" />
+
+        <button type="submit">동아리 ON 로그인</button>
+
+        <div class="login-options">
+          <label>
+            <input type="checkbox" id="keepLogin" />
+            <span>로그인 유지</span>
+          </label>
+          <a href="#">아이디/비밀번호 찾기</a>
+        </div>
+
+        <a href="./signup.html" class="signup-link">회원가입</a>
+      </form>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-brand">
+      <img src="./images/eulji-logo-ko.svg" alt="을지대학교 로고" />
+      <h2>동아리 ON</h2>
+      <p>© 2026 EULJI UNIVERSITY. <span>All rights reserved.</span></p>
+    </div>
+
+    <div class="footer-menu">
+      <ul>
+        <li><a href="./club-list.html">동아리 탐색</a></li>
+        <li><a href="./apply.html">동아리 지원</a></li>
+        <li><a href="./mypage.html">마이페이지</a></li>
+        <li><a href="./login.html">로그인 / 회원가입</a></li>
+      </ul>
+      <ul>
+        <li><a href="./guide.html">이용 안내</a></li>
+        <li><a href="./inquiry.html">문의</a></li>
+      </ul>
+    </div>
+  </footer>
+
+  <script src="./js/login.js"></script>
+</body>
+</html>

@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>동아리 탐색 | 동아리 ON</title>
+  <link rel="stylesheet" href="./css/style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <a href="./index.html" class="logo-wrap" aria-label="동아리 ON 홈">
+      <img src="./images/eulji-emblem.svg" alt="을지대학교 엠블럼" class="header-emblem" />
+      <span>동아리 ON</span>
+    </a>
+
+    <nav class="gnb" aria-label="주요 메뉴">
+      <a href="./index.html">홈</a>
+      <a href="./club-list.html" class="is-active">동아리 탐색</a>
+      <a href="./apply.html">동아리 지원</a>
+      <a href="./mypage.html">마이페이지</a>
+    </nav>
+  </header>
+
+  <main class="explore-page">
+    <section class="explore-container">
+      <div class="explore-tabs" aria-label="동아리 구분">
+        <button type="button" class="explore-tab is-active" data-type="CENTRAL">중앙동아리</button>
+        <button type="button" class="explore-tab" data-type="GENERAL">일반동아리</button>
+      </div>
+
+      <div class="explore-toolbar">
+        <form class="explore-search">
+          <input type="text" id="clubSearchInput" placeholder="찾으시는 동아리가 있나요?" />
+          <button type="submit" aria-label="검색">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="10.5" cy="10.5" r="6.2"></circle>
+              <path d="M15.2 15.2 21 21"></path>
+            </svg>
+          </button>
+        </form>
+
+        <div class="explore-filters">
+          <button type="button" class="filter-chip scrap-chip" id="scrapOnlyBtn">
+            <img src="./images/checkbox.svg" alt="" />
+            <span>스크랩</span>
+          </button>
+
+          <div class="category-dropdown" id="categoryDropdown">
+            <button type="button" class="filter-chip category-chip" id="categoryBtn">
+              <span id="currentCategoryText">카테고리: 전체</span>
+            </button>
+
+            <div class="category-panel" id="categoryPanel" aria-label="카테고리 선택">
+              <h3>카테고리</h3>
+              <div class="category-options">
+                <button type="button" class="is-active" data-category="ALL">전체</button>
+                <button type="button" data-category="RELIGION">종교</button>
+                <button type="button" data-category="PERFORMANCE">문화/예술/공연</button>
+                <button type="button" data-category="SPORTS">체육</button>
+                <button type="button" data-category="VOLUNTEER">봉사</button>
+                <button type="button" data-category="ETC">기타</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="explore-result-info" id="resultInfo"></div>
+
+      <section class="explore-grid" id="clubGrid" aria-label="동아리 목록"></section>
+
+      <div class="explore-empty" id="exploreEmpty">
+        조건에 맞는 동아리가 없어요.
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-brand">
+      <img src="./images/eulji-logo-ko.svg" alt="을지대학교 로고" />
+      <h2>동아리 ON</h2>
+      <p>© 2026 EULJI UNIVERSITY. <span>All rights reserved.</span></p>
+    </div>
+
+    <div class="footer-menu">
+      <ul>
+        <li><a href="./club-list.html">동아리 탐색</a></li>
+        <li><a href="./apply.html">동아리 지원</a></li>
+        <li><a href="./mypage.html">마이페이지</a></li>
+        <li><a href="./login.html">로그인 / 회원가입</a></li>
+      </ul>
+      <ul>
+        <li><a href="./guide.html">이용 안내</a></li>
+        <li><a href="./inquiry.html">문의</a></li>
+      </ul>
+    </div>
+  </footer>
+
+  <script src="./js/auth.js"></script>
+  <script src="./js/club-list.js"></script>
+</body>
+</html>
