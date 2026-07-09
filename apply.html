@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>동아리 지원 | 동아리 ON</title>
+  <link rel="stylesheet" href="./css/style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <a href="./index.html" class="logo-wrap" aria-label="동아리 ON 홈">
+      <img src="./images/eulji-emblem.svg" alt="을지대학교 엠블럼" class="header-emblem" />
+      <span>동아리 ON</span>
+    </a>
+
+    <nav class="gnb" aria-label="주요 메뉴">
+      <a href="./index.html">홈</a>
+      <a href="./club-list.html">동아리 탐색</a>
+      <a href="./apply.html" class="is-active">동아리 지원</a>
+      <a href="./mypage.html">마이페이지</a>
+    </nav>
+  </header>
+
+  <main class="apply-page">
+    <section class="apply-layout">
+      <aside class="apply-club-list">
+        <form class="apply-search">
+          <input type="text" id="applySearchInput" placeholder="지원할 동아리를 검색해보세요" />
+          <button type="submit" aria-label="검색">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="10.5" cy="10.5" r="6.2"></circle>
+              <path d="M15.2 15.2 21 21"></path>
+            </svg>
+          </button>
+        </form>
+
+        <div class="apply-filter-chips">
+          <button type="button" data-apply-type="CENTRAL">중앙동아리</button>
+          <button type="button" data-apply-type="GENERAL">일반동아리</button>
+          <button type="button" data-apply-status="OPEN">모집 중</button>
+          <button type="button" data-apply-status="ALWAYS">상시 모집</button>
+          <button type="button" data-apply-scrap="true">
+            <img src="./images/checkbox.svg" alt="" />
+            스크랩
+          </button>
+        </div>
+
+        <div class="apply-list" id="applyClubList"></div>
+      </aside>
+
+      <section class="apply-form-panel" id="applyFormPanel">
+        <div class="apply-empty" id="applyEmpty">
+          지원할 동아리를 선택하면 지원서가 표시됩니다.
+        </div>
+
+        <form class="club-application-form" id="clubApplicationForm">
+          <div class="apply-form-head">
+            <h1 id="applicationClubName">멋쟁이사자처럼 지원서</h1>
+            <p id="applicationClubDesc">전국 최대규모 IT창업동아리</p>
+          </div>
+
+          <div class="application-row">
+            <label for="applicantName">이름</label>
+            <input type="text" id="applicantName" value="김지현" />
+          </div>
+
+          <div class="application-row">
+            <label for="applicantStudentId">학번</label>
+            <input type="text" id="applicantStudentId" value="2024133035" />
+          </div>
+
+          <div class="application-row">
+            <label for="applicantDepartment">학과</label>
+            <input type="text" id="applicantDepartment" value="휴먼서비스학부 시각디자인전공" />
+          </div>
+
+          <div class="application-row">
+            <label for="applicantPhone">연락처</label>
+            <input type="text" id="applicantPhone" placeholder="010-0000-0000" />
+          </div>
+
+          <div class="application-row">
+            <label for="applicantReason">지원 동기</label>
+            <textarea id="applicantReason" placeholder="지원 동기를 작성해주세요."></textarea>
+          </div>
+
+          <div class="application-row">
+            <label for="applicantIntro">자기소개</label>
+            <textarea id="applicantIntro" placeholder="자기소개를 작성해주세요."></textarea>
+          </div>
+
+          <div class="application-row">
+            <label>첨부파일</label>
+            <div class="file-drop">
+              <p>파일을 드래그하거나 클릭하여 첨부해주세요.</p>
+              <span>최대 10MB / 최대 5개</span>
+            </div>
+          </div>
+
+          <div class="apply-form-buttons">
+            <button type="button" class="line-btn">임시저장</button>
+            <button type="submit" class="submit-btn-small">지원하기</button>
+          </div>
+        </form>
+      </section>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-brand">
+      <img src="./images/eulji-logo-ko.svg" alt="을지대학교 로고" />
+      <h2>동아리 ON</h2>
+      <p>© 2026 EULJI UNIVERSITY. <span>All rights reserved.</span></p>
+    </div>
+
+    <div class="footer-menu">
+      <ul>
+        <li><a href="./club-list.html">동아리 탐색</a></li>
+        <li><a href="./apply.html">동아리 지원</a></li>
+        <li><a href="./mypage.html">마이페이지</a></li>
+        <li><a href="./login.html">로그인 / 회원가입</a></li>
+      </ul>
+      <ul>
+        <li><a href="./guide.html">이용 안내</a></li>
+        <li><a href="./inquiry.html">문의</a></li>
+      </ul>
+    </div>
+  </footer>
+
+  <script src="./js/auth.js"></script>
+  <script src="./js/apply.js"></script>
+</body>
+</html>

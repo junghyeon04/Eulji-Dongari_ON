@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>회원가입 | 동아리 ON</title>
+  <link rel="stylesheet" href="./css/style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <a href="./index.html" class="logo-wrap" aria-label="동아리 ON 홈">
+      <img src="./images/eulji-emblem.svg" alt="을지대학교 엠블럼" class="header-emblem" />
+      <span>동아리 ON</span>
+    </a>
+
+    <nav class="gnb" aria-label="주요 메뉴">
+      <a href="./index.html">홈</a>
+      <a href="./club-list.html">동아리 탐색</a>
+      <a href="./apply.html">동아리 지원</a>
+      <a href="./mypage.html" class="is-active">마이페이지</a>
+    </nav>
+  </header>
+
+  <main class="signup-page">
+    <section class="signup-card" id="signupCard">
+      <ol class="signup-stepper" aria-label="회원가입 단계">
+        <li class="is-active" data-step-dot="1">학교 인증</li>
+        <li data-step-dot="2">기본정보</li>
+        <li data-step-dot="3">약관동의</li>
+        <li data-step-dot="4">회원유형</li>
+        <li data-step-dot="5">완료</li>
+      </ol>
+
+      <form class="signup-form" id="signupForm">
+        <section class="signup-step is-active" data-step="1">
+          <h1>학교 인증을 진행해 주세요</h1>
+
+          <div class="signup-field">
+            <label for="schoolEmail">소속 학교 이메일 <span>*</span></label>
+            <div class="email-send-row">
+              <input type="email" id="schoolEmail" placeholder="학교 이메일을 입력해 주세요." />
+              <button type="button" class="line-action-btn" id="sendCodeBtn">인증번호 발송</button>
+            </div>
+          </div>
+
+          <div class="signup-field verification-field">
+            <label for="verificationCode">인증번호 <span>*</span></label>
+            <input type="text" id="verificationCode" maxlength="8" placeholder="인증번호 8자리를 입력해 주세요." />
+            <p class="resend-text">
+              이메일이 오지 않나요?
+              <button type="button" id="resendCodeBtn">재발송</button>
+            </p>
+          </div>
+
+          <button type="button" class="signup-next-btn single-next" data-next>다음</button>
+        </section>
+
+        <section class="signup-step" data-step="2">
+          <h1>기본 정보를 입력해 주세요</h1>
+
+          <div class="signup-field">
+            <label for="signupName">이름 <span>*</span></label>
+            <input type="text" id="signupName" placeholder="이름을 입력해 주세요." />
+          </div>
+
+          <div class="signup-field">
+            <label for="signupStudentId">학번 <span>*</span></label>
+            <input type="text" id="signupStudentId" maxlength="20" placeholder="학번을 입력해 주세요." />
+          </div>
+
+          <div class="signup-field">
+            <label for="signupDepartment">학과 <span>*</span></label>
+            <input type="text" id="signupDepartment" placeholder="학과를 입력해 주세요." />
+          </div>
+
+          <div class="signup-field">
+            <label for="signupPassword">비밀번호 <span>*</span></label>
+            <input type="password" id="signupPassword" placeholder="영문/숫자/특수문자 포함 8자 이상" />
+          </div>
+
+          <div class="signup-field">
+            <label for="signupPasswordCheck">비밀번호 확인 <span>*</span></label>
+            <input type="password" id="signupPasswordCheck" placeholder="비밀번호를 한 번 더 입력해 주세요." />
+          </div>
+
+          <div class="signup-buttons">
+            <button type="button" class="signup-prev-btn" data-prev>이전</button>
+            <button type="button" class="signup-next-btn" data-next>다음</button>
+          </div>
+        </section>
+
+        <section class="signup-step" data-step="3">
+          <h1>약관에 동의해 주세요</h1>
+
+          <div class="terms-box">
+            <label class="terms-all">
+              <input type="checkbox" id="termsAll" />
+              <span>전체 동의</span>
+            </label>
+
+            <div class="terms-item">
+              <label>
+                <input type="checkbox" class="term-check" data-required="true" />
+                <span>[필수] 서비스 이용약관 동의</span>
+              </label>
+              <button type="button">보기</button>
+            </div>
+
+            <div class="terms-item">
+              <label>
+                <input type="checkbox" class="term-check" data-required="true" />
+                <span>[필수] 개인정보 수집 및 이용 동의</span>
+              </label>
+              <button type="button">보기</button>
+            </div>
+
+            <div class="terms-item">
+              <label>
+                <input type="checkbox" class="term-check" data-required="true" />
+                <span>[필수] 학교 이메일 인증 정보 활용 동의</span>
+              </label>
+              <button type="button">보기</button>
+            </div>
+
+            <div class="terms-item">
+              <label>
+                <input type="checkbox" class="term-check" />
+                <span>[선택] 동아리 소식 및 알림 수신 동의</span>
+              </label>
+              <button type="button">보기</button>
+            </div>
+          </div>
+
+          <div class="signup-buttons">
+            <button type="button" class="signup-prev-btn" data-prev>이전</button>
+            <button type="button" class="signup-next-btn" data-next>다음</button>
+          </div>
+        </section>
+
+        <section class="signup-step signup-role-step" data-step="4">
+          <h1>회원 유형을 선택해 주세요</h1>
+
+          <div class="member-type-list">
+            <button type="button" class="member-type-card is-selected" data-role-select="ROLE_STUDENT">
+              <span class="radio-circle"></span>
+              <span>
+                <strong>일반 회원</strong>
+                <em>동아리 탐색 및 지원, 동아리 게시글 작성 등 기본 활동이 가능합니다.</em>
+              </span>
+            </button>
+
+            <button type="button" class="member-type-card" data-role-select="ROLE_CLUB_ADMIN_PENDING">
+              <span class="radio-circle"></span>
+              <span>
+                <strong>일반 회원 + 동아리 운영자 신청</strong>
+                <em>일반 회원 권한과 함께 동아리 운영자 권한이 부여됩니다.</em>
+              </span>
+            </button>
+          </div>
+
+          <div class="operator-request-box" id="operatorRequestBox">
+            <h2>운영자 신청 정보</h2>
+
+            <div class="operator-form-grid">
+              <div class="signup-field">
+                <label for="operatorClubType">동아리 유형 <span>*</span></label>
+                <select id="operatorClubType">
+                  <option value="">선택</option>
+                  <option value="CENTRAL">중앙동아리</option>
+                  <option value="GENERAL">일반동아리</option>
+                </select>
+              </div>
+
+              <div class="signup-field">
+                <label for="operatorClubName">신청 동아리 <span>*</span></label>
+                <input type="text" id="operatorClubName" placeholder="동아리명을 작성해 주세요." />
+              </div>
+
+              <div class="signup-field">
+                <label for="operatorRole">동아리 내 역할 <span>*</span></label>
+                <select id="operatorRole">
+                  <option value="">선택</option>
+                  <option value="PRESIDENT">회장</option>
+                  <option value="VICE_PRESIDENT">부회장</option>
+                  <option value="PROMOTION">홍보 담당</option>
+                  <option value="MANAGER">운영진</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="operator-notice">
+              <strong>운영자 신청 안내</strong>
+              <ul>
+                <li>신청 후 학교에서 검토 및 승인 과정이 진행됩니다.</li>
+                <li>동아리의 공지 작성·게시글 관리·동아리 정보 수정 등이 가능합니다.</li>
+                <li>승인 결과는 이메일에서 확인 가능합니다.</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="signup-buttons role-buttons">
+            <button type="button" class="signup-prev-btn" data-prev>이전</button>
+            <button type="button" class="signup-next-btn" id="completeSignupBtn">다음</button>
+          </div>
+        </section>
+
+        <section class="signup-step signup-complete-step" data-step="5">
+          <div class="complete-visual">
+            <img src="./images/signup-complete.svg" alt="" />
+          </div>
+          <h1 id="completeTitle">회원가입이 완료되었습니다!</h1>
+          <p id="completeMessage">가입을 환영합니다. 동아리 ON에서 동아리 활동을 함께 즐겨요!</p>
+
+          <div class="operator-pending-notice" id="operatorPendingNotice">
+            <strong>운영자 신청 안내</strong>
+            <p>
+              운영자 권한은 학교의 승인이 필요합니다.<br />
+              승인 결과는 이메일로 안내드리며<br />
+              승인 후 운영자 메뉴가 활성화됩니다.
+            </p>
+          </div>
+
+          <div class="complete-buttons">
+            <a href="./index.html" class="signup-prev-btn">홈</a>
+            <a href="./login.html" class="signup-next-btn">로그인 하기</a>
+          </div>
+        </section>
+      </form>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-brand">
+      <img src="./images/eulji-logo-ko.svg" alt="을지대학교 로고" />
+      <h2>동아리 ON</h2>
+      <p>© 2026 EULJI UNIVERSITY. <span>All rights reserved.</span></p>
+    </div>
+
+    <div class="footer-menu">
+      <ul>
+        <li><a href="./club-list.html">동아리 탐색</a></li>
+        <li><a href="./apply.html">동아리 지원</a></li>
+        <li><a href="./mypage.html">마이페이지</a></li>
+        <li><a href="./login.html">로그인 / 회원가입</a></li>
+      </ul>
+      <ul>
+        <li><a href="./guide.html">이용 안내</a></li>
+        <li><a href="./inquiry.html">문의</a></li>
+      </ul>
+    </div>
+  </footer>
+
+  <script src="./js/signup.js"></script>
+</body>
+</html>
