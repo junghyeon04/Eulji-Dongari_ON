@@ -1,6 +1,7 @@
 const CHECKBOX_OFF = "./images/checkbox.svg";
 const CHECKBOX_ON = "./images/checkbox-on.svg";
 const STORAGE_KEY = "bookmarkedClubs";
+const BOARD_STORAGE_KEY = "clubBoardPosts";
 
 /*
   역할 확인:
@@ -10,10 +11,10 @@ const STORAGE_KEY = "bookmarkedClubs";
   일반 회원으로 되돌리기:
   setUserRole("ROLE_STUDENT")
 
-  나중에 로그인 API가 붙으면 response.data.role 값을 localStorage에 저장하면 됨.
+  나중에 로그인 API가 붙으면 response.data.role 값을 localStorage/sessionStorage에 저장하면 됨.
 */
 function getUserRole() {
-  return localStorage.getItem("userRole") || "ROLE_STUDENT";
+  return sessionStorage.getItem("userRole") || localStorage.getItem("userRole") || "ROLE_STUDENT";
 }
 
 function setUserRole(role) {
@@ -42,10 +43,7 @@ const CATEGORY_LABELS = {
   QUESTION: "질문",
 };
 
-let boardFilter = "ALL";
-let boardKeyword = "";
-
-const boardPosts = [
+const DEFAULT_BOARD_POSTS = [
   {
     id: 10,
     category: "NOTICE",
@@ -53,6 +51,8 @@ const boardPosts = [
     author: "운영진",
     date: "2026.07.08",
     views: 128,
+    content:
+      "안녕하세요, 멋쟁이사자처럼 을지대학교 운영진입니다!\n\n멋쟁이사자처럼에서 함께 성장할 2026년 2학기 아기사자를 모집합니다. 개발에 관심 있는 을지대학교 재학생 여러분의 많은 관심 부탁드립니다.\n\n자세한 사항은 카드뉴스를 참고해주세요!",
   },
   {
     id: 9,
@@ -61,6 +61,7 @@ const boardPosts = [
     author: "이*현",
     date: "2026.07.01",
     views: 8,
+    content: "비전공자도 멋쟁이사자처럼에 지원할 수 있는지 궁금합니다.",
   },
   {
     id: 8,
@@ -69,6 +70,7 @@ const boardPosts = [
     author: "박*진",
     date: "2026.06.22",
     views: 13,
+    content: "정기 스터디를 온라인으로도 참여할 수 있나요?",
   },
   {
     id: 7,
@@ -77,6 +79,7 @@ const boardPosts = [
     author: "운영진",
     date: "2026.06.01",
     views: 65,
+    content: "해커톤 참가 팀 모집 안내입니다. 참여를 원하는 부원은 운영진에게 문의해주세요.",
   },
   {
     id: 6,
@@ -85,6 +88,7 @@ const boardPosts = [
     author: "운영진",
     date: "2026.06.01",
     views: 29,
+    content: "7~8월 정기 스터디 일정 안내입니다.",
   },
   {
     id: 5,
@@ -93,6 +97,7 @@ const boardPosts = [
     author: "심*지",
     date: "2026.05.28",
     views: 16,
+    content: "2학기 아기사자 모집 일정이 궁금합니다.",
   },
   {
     id: 4,
@@ -101,6 +106,7 @@ const boardPosts = [
     author: "운영진",
     date: "2026.05.22",
     views: 13,
+    content: "6~9주차 기초 스터디 자료입니다.",
   },
   {
     id: 3,
@@ -109,6 +115,7 @@ const boardPosts = [
     author: "운영진",
     date: "2026.05.04",
     views: 65,
+    content: "멋사 미니프로젝트 최종 자료입니다.",
   },
   {
     id: 2,
@@ -117,6 +124,7 @@ const boardPosts = [
     author: "운영진",
     date: "2026.04.18",
     views: 48,
+    content: "1~5주차 기초 스터디 자료입니다.",
   },
   {
     id: 1,
@@ -125,8 +133,80 @@ const boardPosts = [
     author: "운영진",
     date: "2026.03.03",
     views: 221,
+    content: "2026년 1학기 아기사자 모집 안내입니다.",
   },
 ];
+
+let boardFilter = "ALL";
+let boardKeyword = "";
+
+function todayText() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const date = String(now.getDate()).padStart(2, "0");
+  return `${year}.${month}.${date}`;
+}
+
+function getCurrentUser() {
+  try {
+    return (
+      JSON.parse(sessionStorage.getItem("currentUser")) ||
+      JSON.parse(localStorage.getItem("currentUser")) ||
+      JSON.parse(localStorage.getItem("registeredUser")) ||
+      null
+    );
+  } catch {
+    return null;
+  }
+}
+
+function getBoardPosts() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(BOARD_STORAGE_KEY));
+    if (Array.isArray(saved)) return saved;
+  } catch {
+    return [];
+  }
+
+  localStorage.setItem(BOARD_STORAGE_KEY, JSON.stringify(DEFAULT_BOARD_POSTS));
+  return DEFAULT_BOARD_POSTS;
+}
+
+function saveBoardPosts(posts) {
+  localStorage.setItem(BOARD_STORAGE_KEY, JSON.stringify(posts));
+}
+
+function createBoardPost({ category, title, author, content }) {
+  const posts = getBoardPosts();
+  const maxId = posts.reduce((max, post) => Math.max(max, Number(post.id) || 0), 0);
+
+  const nextPost = {
+    id: maxId + 1,
+    category,
+    title,
+    author,
+    date: todayText(),
+    views: 0,
+    content,
+  };
+
+  posts.unshift(nextPost);
+  saveBoardPosts(posts);
+  return nextPost;
+}
+
+function increasePostViews(postId) {
+  const posts = getBoardPosts();
+  const target = posts.find((post) => String(post.id) === String(postId));
+
+  if (!target) return null;
+
+  target.views = (Number(target.views) || 0) + 1;
+  saveBoardPosts(posts);
+
+  return target;
+}
 
 function getSavedClubs() {
   try {
@@ -195,13 +275,10 @@ function setActiveDetailTab(tabName) {
   }
 }
 
-function renderBoardPosts() {
-  const tbody = document.querySelector("#boardTableBody");
-  if (!tbody) return;
-
+function getFilteredBoardPosts() {
   const keyword = boardKeyword.trim().toLowerCase();
 
-  const filteredPosts = boardPosts.filter((post) => {
+  return getBoardPosts().filter((post) => {
     const matchesCategory = boardFilter === "ALL" ? true : post.category === boardFilter;
     const matchesKeyword =
       keyword.length === 0 ||
@@ -211,12 +288,28 @@ function renderBoardPosts() {
 
     return matchesCategory && matchesKeyword;
   });
+}
+
+function renderBoardPosts() {
+  const tbody = document.querySelector("#boardTableBody");
+  if (!tbody) return;
+
+  const filteredPosts = getFilteredBoardPosts();
+
+  if (filteredPosts.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="6" class="board-empty-row">등록된 게시글이 없습니다.</td>
+      </tr>
+    `;
+    return;
+  }
 
   tbody.innerHTML = filteredPosts
-    .map((post) => {
+    .map((post, index) => {
       return `
         <tr data-post-id="${post.id}">
-          <td>${post.id}</td>
+          <td>${filteredPosts.length - index}</td>
           <td>${CATEGORY_LABELS[post.category]}</td>
           <td><button type="button" class="post-link">${post.title}</button></td>
           <td>${post.author}</td>
@@ -264,7 +357,8 @@ function renderPostCategoryTabs() {
   }
 
   if (author) {
-    author.value = isClubAdmin() ? "운영자" : "김*현";
+    const user = getCurrentUser();
+    author.value = isClubAdmin() ? "운영자" : user?.name || "일반회원";
   }
 
   wrapper.querySelectorAll("[data-write-category]").forEach((button) => {
@@ -277,13 +371,26 @@ function renderPostCategoryTabs() {
   });
 }
 
+function clearBoardForm() {
+  const title = document.querySelector("#postTitle");
+  const content = document.querySelector("#postContent");
+  const count = document.querySelector("#postCount");
+
+  if (title) title.value = "";
+  if (content) content.value = "";
+  if (count) count.textContent = "0/2000자";
+}
+
 function showBoardList() {
   document.querySelector("#boardListPanel").style.display = "block";
   document.querySelector("#boardWritePanel").style.display = "none";
   document.querySelector("#boardPostPanel").style.display = "none";
+  renderBoardPosts();
 }
 
 function showWriteForm() {
+  if (!requireLogin("게시글 작성은 로그인 후 이용할 수 있습니다.<br />로그인 페이지로 이동하시겠습니까?")) return;
+
   document.querySelector("#boardListPanel").style.display = "none";
   document.querySelector("#boardWritePanel").style.display = "block";
   document.querySelector("#boardPostPanel").style.display = "none";
@@ -291,13 +398,29 @@ function showWriteForm() {
 }
 
 function openPostDetail(postId) {
-  const post = boardPosts.find((item) => String(item.id) === String(postId));
+  const post = increasePostViews(postId);
   if (!post) return;
 
   document.querySelector("#postDetailTitle").textContent = post.title;
   document.querySelector("#postDetailAuthor").textContent = post.author;
   document.querySelector("#postDetailDate").textContent = post.date;
   document.querySelector("#postDetailViews").textContent = post.views;
+
+  const postBody = document.querySelector(".post-body");
+  if (postBody) {
+    postBody.innerHTML = `
+      <p>${String(post.content || "").replace(/\n/g, "<br />")}</p>
+    `;
+
+    if (post.category === "NOTICE") {
+      postBody.innerHTML += `
+        <div class="poster-large post-poster">
+          <img src="./images/likelion-poster.png" alt="모집 공지 이미지" onerror="this.style.display='none'; this.parentElement.classList.add('is-empty');" />
+          <p>공지 이미지를 images/likelion-poster.png로 넣으면 여기에 표시됩니다.</p>
+        </div>
+      `;
+    }
+  }
 
   document.querySelector("#boardListPanel").style.display = "none";
   document.querySelector("#boardWritePanel").style.display = "none";
@@ -373,6 +496,7 @@ document.querySelector(".board-form")?.addEventListener("submit", (event) => {
   const activeCategory = document.querySelector("[data-write-category].is-active")?.dataset.writeCategory || "QUESTION";
   const title = document.querySelector("#postTitle").value.trim();
   const content = document.querySelector("#postContent").value.trim();
+  const author = document.querySelector("#postAuthor").value.trim() || "익명";
 
   if (!title || !content) {
     alert("제목과 내용을 입력해주세요.");
@@ -389,16 +513,26 @@ document.querySelector(".board-form")?.addEventListener("submit", (event) => {
     }
   */
 
-  alert(`${CATEGORY_LABELS[activeCategory]} 게시글 등록 준비 완료`);
+  const post = createBoardPost({
+    category: activeCategory,
+    title,
+    author,
+    content,
+  });
+
+  clearBoardForm();
+  boardFilter = "ALL";
+
+  document.querySelectorAll("[data-board-filter]").forEach((item) => {
+    item.classList.toggle("is-active", item.dataset.boardFilter === "ALL");
+  });
+
+  alert("게시글이 등록되었습니다.");
   showBoardList();
+
+  // 등록한 글을 바로 확인하고 싶으면 아래 줄을 켜면 됨.
+  // openPostDetail(post.id);
 });
-
-updateDetailScrapButton();
-initAdminTools();
-renderBoardPosts();
-renderPostCategoryTabs();
-showBoardList();
-
 
 const detailApplyBtnGuard = document.querySelector(".detail-apply-btn");
 detailApplyBtnGuard?.addEventListener("click", (event) => {
@@ -406,3 +540,9 @@ detailApplyBtnGuard?.addEventListener("click", (event) => {
     event.preventDefault();
   }
 });
+
+updateDetailScrapButton();
+initAdminTools();
+renderBoardPosts();
+renderPostCategoryTabs();
+showBoardList();
