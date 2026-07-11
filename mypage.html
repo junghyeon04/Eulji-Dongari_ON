@@ -23,16 +23,27 @@
 
   <main class="mypage-page">
     <div class="mypage-container">
-      <aside class="mypage-sidebar">
-        <h2>마이페이지</h2>
-        <nav class="mypage-sidebar-menu" aria-label="마이페이지 메뉴">
-          <button type="button" class="is-active" data-tab="overview">내 프로필</button>
-          <button type="button" data-tab="clubs">내 동아리</button>
-          <button type="button" data-tab="scraps">스크랩</button>
-          <button type="button" data-tab="applications">지원 내역</button>
-          <button type="button" data-tab="posts">내 게시글</button>
-          <button type="button" data-tab="settings">설정</button>
-        </nav>
+      <aside class="mypage-sidebar-wrap">
+        <section class="mypage-sidebar">
+          <nav class="mypage-sidebar-menu" aria-label="마이페이지 메뉴">
+            <button type="button" class="is-active" data-tab="dashboard">마이페이지</button>
+            <button type="button" data-tab="profile">내 프로필</button>
+            <button type="button" data-tab="clubs">내 동아리</button>
+            <button type="button" data-tab="scraps">스크랩</button>
+            <button type="button" data-tab="applications">지원 내역</button>
+            <button type="button" data-tab="posts">내 게시글</button>
+            <button type="button" data-tab="settings">설정</button>
+          </nav>
+        </section>
+
+        <section class="operator-sidebar-menu" id="operatorSidebarMenu">
+          <nav aria-label="운영 동아리 메뉴">
+            <button type="button" class="operator-menu-title" data-tab="operator-dashboard">운영 동아리</button>
+            <button type="button" data-tab="operator-club-info">동아리 정보 수정</button>
+            <button type="button" data-tab="operator-board">게시판 관리</button>
+            <button type="button" data-tab="operator-members">멤버 관리</button>
+          </nav>
+        </section>
       </aside>
 
       <section class="mypage-content">
@@ -40,15 +51,15 @@
           <div class="profile-left">
             <div class="profile-avatar" aria-hidden="true"></div>
             <div class="profile-info">
-              <h1 id="profileName">김지현</h1>
-              <p id="profileEmail">kyn3638@g.eulji.ac.kr</p>
-              <p id="profileMeta">휴먼서비스학부 시각디자인전공 ㅣ 2024133035</p>
+              <h1 id="profileName">이름 없음</h1>
+              <p id="profileEmail"></p>
+              <p id="profileMeta"></p>
             </div>
           </div>
           <button type="button" class="profile-edit-btn logout-btn">로그아웃</button>
         </section>
 
-        <div class="dynamic-panel is-active" data-panel="overview">
+        <div class="dynamic-panel is-active" data-panel="dashboard">
           <section class="mypage-card content-section joined-section">
             <div class="section-head">
               <h2>내가 가입한 동아리</h2>
@@ -70,6 +81,61 @@
               <button type="button" class="more-link">전체보기 ›</button>
             </div>
             <div class="notification-list" id="notificationList"></div>
+          </section>
+        </div>
+
+        <div class="dynamic-panel" data-panel="profile">
+          <section class="mypage-card content-section profile-info-section">
+            <div class="section-head">
+              <h2>기본 정보</h2>
+              <button type="button" class="profile-info-edit-btn" id="profileInfoEditBtn">정보 수정</button>
+            </div>
+
+            <dl class="profile-info-list">
+              <div>
+                <dt>이름</dt>
+                <dd data-profile-field="name">-</dd>
+              </div>
+              <div>
+                <dt>학과</dt>
+                <dd data-profile-field="department">-</dd>
+              </div>
+              <div>
+                <dt>학번</dt>
+                <dd data-profile-field="studentId">-</dd>
+              </div>
+              <div>
+                <dt>이메일</dt>
+                <dd data-profile-field="email">-</dd>
+              </div>
+              <div>
+                <dt>가입일</dt>
+                <dd data-profile-field="joinDate">-</dd>
+              </div>
+            </dl>
+          </section>
+
+          <section class="mypage-card content-section account-security-section">
+            <div class="section-head">
+              <h2>계정 보안</h2>
+            </div>
+
+            <dl class="account-security-list">
+              <div>
+                <dt>비밀번호</dt>
+                <dd>**********</dd>
+                <button type="button" class="security-action-btn" id="changePasswordBtn">비밀번호 변경</button>
+              </div>
+              <div>
+                <dt>이메일 인증</dt>
+                <dd class="muted-value">인증완료</dd>
+              </div>
+              <div>
+                <dt>탈퇴하기</dt>
+                <dd></dd>
+                <button type="button" class="withdraw-btn" id="withdrawAccountBtn">회원 탈퇴</button>
+              </div>
+            </dl>
           </section>
         </div>
 
@@ -124,7 +190,215 @@
               <h2>설정</h2>
             </div>
             <div class="dynamic-empty">
-              프로필 수정은 <strong>PATCH /api/users/me</strong>로 연결하면 돼요.
+              알림 설정, 계정 설정 등은 나중에 추가할 수 있어요.
+            </div>
+          </section>
+        </div>
+
+
+        <div class="dynamic-panel" data-panel="operator-dashboard">
+          <section class="operator-dashboard-header">
+            <h2>운영 동아리</h2>
+            <p>동아리 운영 및 현황을 한눈에 관리하세요</p>
+          </section>
+
+          <section class="mypage-card operator-club-summary">
+            <div class="operator-club-top">
+              <div class="operator-club-logo">
+                <img src="./images/likelion-poster.png" alt="운영 동아리 로고" onerror="this.style.display='none'; this.parentElement.classList.add('is-empty');" />
+              </div>
+              <div class="operator-club-title">
+                <h3 id="operatorDashboardClubName">멋쟁이사자처럼</h3>
+                <p>중앙동아리 ㅣ 기타</p>
+              </div>
+              <button type="button" class="operator-outline-btn" data-tab-button="operator-club-info">동아리 정보 수정</button>
+            </div>
+
+            <div class="operator-summary-line"></div>
+
+            <div class="operator-summary-bottom">
+              <div class="operator-recruit-summary">
+                <strong>모집 현황</strong>
+                <span>2026.07.08~07.29</span>
+                <span>남은 기간 <b>D-21</b></span>
+                <em>모집 중</em>
+              </div>
+
+              <div class="operator-stats">
+                <div>
+                  <span>총 지원자</span>
+                  <strong>12명</strong>
+                </div>
+                <div>
+                  <span>승인 대기</span>
+                  <strong>10명</strong>
+                </div>
+                <div>
+                  <span>면접 예정</span>
+                  <strong>6명</strong>
+                </div>
+                <div>
+                  <span>최종합격</span>
+                  <strong>0명</strong>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <div class="operator-two-column">
+            <section class="mypage-card operator-mini-section applicant-status-section">
+              <div class="section-head">
+                <h2>지원자 현황</h2>
+                <button type="button" class="more-link">전체보기 ›</button>
+              </div>
+
+              <table class="operator-applicant-table">
+                <thead>
+                  <tr>
+                    <th>이름</th>
+                    <th>학과</th>
+                    <th>지원일</th>
+                    <th>상태</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>박시은</td>
+                    <td>의료it학과</td>
+                    <td>2026.07.08</td>
+                    <td><span class="operator-status wait">대기</span></td>
+                  </tr>
+                  <tr>
+                    <td>한경민</td>
+                    <td>첨단학부</td>
+                    <td>2026.07.08</td>
+                    <td><span class="operator-status wait">대기</span></td>
+                  </tr>
+                  <tr>
+                    <td>김서희</td>
+                    <td>시각디자인전공</td>
+                    <td>2026.07.07</td>
+                    <td><span class="operator-status interview">면접</span></td>
+                  </tr>
+                  <tr>
+                    <td>고미연</td>
+                    <td>간호학과</td>
+                    <td>2026.07.07</td>
+                    <td><span class="operator-status interview">면접</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </section>
+
+            <section class="mypage-card operator-mini-section recent-post-section">
+              <div class="section-head">
+                <h2>최근 게시글</h2>
+                <button type="button" class="operator-write-btn" data-tab-button="operator-board">글쓰기</button>
+              </div>
+
+              <div class="operator-post-list">
+                <article>
+                  <span>공지</span>
+                  <strong>2026년 2학기 아기사자 모집</strong>
+                  <em>2026.07.08</em>
+                </article>
+                <article>
+                  <span>질문</span>
+                  <strong>비전공자도 지원 가능한가요?</strong>
+                  <em>2026.07.01</em>
+                </article>
+                <article>
+                  <span>질문</span>
+                  <strong>스터디는 온라인으로 참여 가능할까요?</strong>
+                  <em>2026.06.22</em>
+                </article>
+                <article>
+                  <span>공지</span>
+                  <strong>해커톤 참가 팀 모집 안내</strong>
+                  <em>2026.06.01</em>
+                </article>
+              </div>
+
+              <button type="button" class="operator-board-link" data-tab-button="operator-board">게시판 보러가기</button>
+            </section>
+          </div>
+
+          <section class="mypage-card operator-log-section">
+            <div class="section-head">
+              <h2>최근 활동</h2>
+              <button type="button" class="more-link">전체보기 ›</button>
+            </div>
+
+            <div class="operator-log-list">
+              <article><span></span><p>김서희님의 지원 상태를 ‘면접 예정’으로 변경했습니다.</p><em>12분 전</em></article>
+              <article><span></span><p>신입 부원 면접 일정 안내 공지가 등록되었습니다.</p><em>26분 전</em></article>
+              <article><span></span><p>김정호님의 지원 상태를 ‘면접 예정’으로 변경했습니다.</p><em>32분 전</em></article>
+              <article><span></span><p>모집 정보를 수정했습니다.</p><em>14시간 전</em></article>
+            </div>
+          </section>
+
+          <section class="mypage-card operator-notification-section">
+            <div class="section-head">
+              <h2>최근 알림</h2>
+              <button type="button" class="more-link">전체보기 ›</button>
+            </div>
+
+            <div class="operator-notice-list">
+              <article>
+                <span>♧</span>
+                <p>운영자 권한 승인 절차 안내가 업데이트되었습니다.</p>
+                <em>2시간 전</em>
+              </article>
+              <article>
+                <span>♧</span>
+                <p>동아리 ON 운영자 이용 안내 공지가 등록되었습니다.</p>
+                <em>10시간 전</em>
+              </article>
+              <article>
+                <span>♧</span>
+                <p>2026학년도 2학기 동아리 모집 등록 기간이 안내되었습니다.</p>
+                <em>2026.06.25</em>
+              </article>
+            </div>
+          </section>
+        </div>
+
+
+        <div class="dynamic-panel" data-panel="operator-club-info">
+          <section class="mypage-card content-section operator-manage-section">
+            <div class="section-head">
+              <h2>동아리 정보 수정</h2>
+            </div>
+            <div class="operator-manage-box">
+              <h3 id="operatorClubName">운영 동아리</h3>
+              <p id="operatorClubStatus">학교 승인 후 동아리 정보 수정 기능을 사용할 수 있습니다.</p>
+              <button type="button">동아리 정보 수정</button>
+            </div>
+          </section>
+        </div>
+
+        <div class="dynamic-panel" data-panel="operator-board">
+          <section class="mypage-card content-section operator-manage-section">
+            <div class="section-head">
+              <h2>게시판 관리</h2>
+            </div>
+            <div class="operator-manage-box">
+              <h3>게시글 관리</h3>
+              <p>공지, 자료, 질문 게시글 관리는 나중에 게시판 API와 연결하면 됩니다.</p>
+              <button type="button">게시판 관리</button>
+            </div>
+          </section>
+        </div>
+
+        <div class="dynamic-panel" data-panel="operator-members">
+          <section class="mypage-card content-section operator-manage-section">
+            <div class="section-head">
+              <h2>멤버 관리</h2>
+            </div>
+            <div class="operator-manage-box">
+              <h3>동아리 멤버 관리</h3>
+              <p>부원 목록 조회, 역할 변경, 멤버 관리는 나중에 멤버 API와 연결하면 됩니다.</p>
+              <button type="button">멤버 관리</button>
             </div>
           </section>
         </div>

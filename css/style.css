@@ -4963,3 +4963,913 @@ body.protected-page-locked .login-required-overlay {
 .logout-btn {
   cursor: pointer;
 }
+
+
+/* =========================================================
+   MyPage profile edit panel
+   내 프로필 탭: 기본 정보 / 계정 보안
+========================================================= */
+.profile-info-section {
+  min-height: 389px;
+  padding: 32px 42px 40px;
+}
+
+.account-security-section {
+  min-height: 281px;
+  padding: 32px 42px 40px;
+}
+
+.profile-info-section .section-head,
+.account-security-section .section-head {
+  margin-bottom: 28px;
+}
+
+.profile-info-edit-btn,
+.security-action-btn,
+.withdraw-btn {
+  height: 37px;
+  border: 1px solid rgba(0, 0, 0, 0.25);
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 0 16px;
+  color: rgba(0, 0, 0, 0.25);
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.withdraw-btn {
+  color: red;
+  font-size: 15px;
+}
+
+.profile-info-list,
+.account-security-list {
+  width: min(798px, 100%);
+  margin: 0 auto;
+}
+
+.profile-info-list div,
+.account-security-list div {
+  min-height: 56px;
+  border-bottom: 1px solid #d9d9d9;
+  display: grid;
+  align-items: center;
+  gap: 28px;
+}
+
+.profile-info-list div {
+  grid-template-columns: 72px minmax(0, 1fr);
+}
+
+.account-security-list div {
+  grid-template-columns: 110px minmax(0, 1fr) auto;
+}
+
+.profile-info-list div:last-child,
+.account-security-list div:last-child {
+  border-bottom: 0;
+}
+
+.profile-info-list dt,
+.account-security-list dt {
+  color: #000000;
+  font-size: 21px;
+  font-weight: 700;
+}
+
+.profile-info-list dd,
+.account-security-list dd {
+  margin: 0;
+  color: #000000;
+  font-size: 21px;
+  font-weight: 500;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.account-security-list .muted-value {
+  color: rgba(0, 0, 0, 0.25);
+}
+
+.profile-edit-input {
+  width: 100%;
+  height: 38px;
+  border: 1px solid #d9d9d9;
+  border-radius: 8px;
+  padding: 0 12px;
+  color: #000000;
+  font-size: 18px;
+  outline: none;
+}
+
+.profile-edit-input:focus {
+  border-color: var(--yellow);
+}
+
+@media (max-width: 760px) {
+  .profile-info-section,
+  .account-security-section {
+    padding: 28px 22px 34px;
+  }
+
+  .profile-info-list div,
+  .account-security-list div {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 15px 0;
+  }
+
+  .security-action-btn,
+  .withdraw-btn {
+    width: fit-content;
+  }
+}
+
+
+/* =========================================================
+   MyPage split: 일반회원 기본 화면 + 운영자 메뉴 + 내 프로필 수정 화면
+========================================================= */
+.mypage-sidebar-wrap {
+  display: grid;
+  gap: 18px;
+  align-content: start;
+  position: sticky;
+  top: 104px;
+}
+
+.mypage-sidebar-wrap .mypage-sidebar {
+  position: static;
+}
+
+.operator-sidebar-menu {
+  display: none;
+  width: 183px;
+  min-height: 139px;
+  border-radius: 16px;
+  background: #f5f5f5;
+  padding: 24px 18px;
+  text-align: center;
+}
+
+.operator-sidebar-menu h2 {
+  margin: 0 0 24px;
+  color: var(--yellow);
+  font-size: 16px;
+  line-height: 1.2;
+  font-weight: 800;
+}
+
+.operator-sidebar-menu nav {
+  display: grid;
+  gap: 18px;
+}
+
+.operator-sidebar-menu button {
+  border: 0;
+  background: transparent;
+  color: #000000;
+  font-size: 16px;
+  line-height: 1.2;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.operator-sidebar-menu button.is-active {
+  color: var(--yellow);
+  font-weight: 900;
+}
+
+.dynamic-panel[data-panel="dashboard"].is-active {
+  display: grid;
+  gap: 28px;
+}
+
+.dynamic-panel[data-panel="profile"].is-active,
+.dynamic-panel[data-panel="clubs"].is-active,
+.dynamic-panel[data-panel="scraps"].is-active,
+.dynamic-panel[data-panel="applications"].is-active,
+.dynamic-panel[data-panel="posts"].is-active,
+.dynamic-panel[data-panel="settings"].is-active,
+.dynamic-panel[data-panel="operator-club-info"].is-active,
+.dynamic-panel[data-panel="operator-board"].is-active,
+.dynamic-panel[data-panel="operator-members"].is-active {
+  display: block;
+}
+
+/* 이전 overview 전용 보정보다 dashboard/profile을 우선 적용 */
+.dynamic-panel[data-panel="overview"].is-active {
+  display: none;
+}
+
+.profile-info-section {
+  min-height: 389px;
+  padding: 32px 42px 40px;
+}
+
+.account-security-section {
+  min-height: 281px;
+  padding: 32px 42px 40px;
+}
+
+.profile-info-section .section-head,
+.account-security-section .section-head {
+  margin-bottom: 28px;
+}
+
+.profile-info-edit-btn,
+.security-action-btn,
+.withdraw-btn {
+  height: 37px;
+  border: 1px solid rgba(0, 0, 0, 0.25);
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 0 16px;
+  color: rgba(0, 0, 0, 0.25);
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.withdraw-btn {
+  color: red;
+  font-size: 15px;
+}
+
+.profile-info-list,
+.account-security-list {
+  width: min(798px, 100%);
+  margin: 0 auto;
+}
+
+.profile-info-list div,
+.account-security-list div {
+  min-height: 56px;
+  border-bottom: 1px solid #d9d9d9;
+  display: grid;
+  align-items: center;
+  gap: 28px;
+}
+
+.profile-info-list div {
+  grid-template-columns: 72px minmax(0, 1fr);
+}
+
+.account-security-list div {
+  grid-template-columns: 110px minmax(0, 1fr) auto;
+}
+
+.profile-info-list div:last-child,
+.account-security-list div:last-child {
+  border-bottom: 0;
+}
+
+.profile-info-list dt,
+.account-security-list dt {
+  color: #000000;
+  font-size: 21px;
+  font-weight: 700;
+}
+
+.profile-info-list dd,
+.account-security-list dd {
+  margin: 0;
+  color: #000000;
+  font-size: 21px;
+  font-weight: 500;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.account-security-list .muted-value {
+  color: rgba(0, 0, 0, 0.25);
+}
+
+.profile-edit-input {
+  width: 100%;
+  height: 38px;
+  border: 1px solid #d9d9d9;
+  border-radius: 8px;
+  padding: 0 12px;
+  color: #000000;
+  font-size: 18px;
+  outline: none;
+}
+
+.profile-edit-input:focus {
+  border-color: var(--yellow);
+}
+
+.operator-manage-section {
+  min-height: 320px;
+}
+
+.operator-manage-box {
+  min-height: 170px;
+  border: 1px solid #d9d9d9;
+  border-radius: 16px;
+  background: #ffffff;
+  padding: 32px;
+}
+
+.operator-manage-box h3 {
+  margin: 0 0 12px;
+  color: #000000;
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.operator-manage-box p {
+  margin: 0 0 28px;
+  color: rgba(0, 0, 0, 0.45);
+  font-size: 18px;
+  line-height: 1.5;
+  font-weight: 600;
+}
+
+.operator-manage-box button {
+  height: 42px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--yellow);
+  color: #ffffff;
+  padding: 0 20px;
+  font-size: 18px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.mypage-empty-line {
+  min-height: 112px;
+  display: flex;
+  align-items: center;
+  color: rgba(0, 0, 0, 0.35);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.notification-list .mypage-empty-line {
+  min-height: 120px;
+  justify-content: center;
+  text-align: center;
+}
+
+@media (max-width: 1180px) {
+  .mypage-sidebar-wrap {
+    position: static;
+  }
+
+  .operator-sidebar-menu {
+    width: 100%;
+  }
+
+  .operator-sidebar-menu nav {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 760px) {
+  .profile-info-section,
+  .account-security-section {
+    padding: 28px 22px 34px;
+  }
+
+  .profile-info-list div,
+  .account-security-list div {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 15px 0;
+  }
+
+  .security-action-btn,
+  .withdraw-btn {
+    width: fit-content;
+  }
+}
+
+
+/* MyPage sidebar duplicate title removed */
+.mypage-sidebar > h2 {
+  display: none;
+}
+
+.mypage-sidebar {
+  padding-top: 34px;
+}
+
+
+/* Board create + view count */
+.board-empty-row {
+  height: 120px;
+  color: rgba(0, 0, 0, 0.35) !important;
+  font-size: 18px !important;
+  font-weight: 700 !important;
+  text-align: center !important;
+}
+
+.board-table tbody tr {
+  cursor: pointer;
+}
+
+.board-table tbody tr:hover {
+  background: #fff8ec;
+}
+
+.post-body p {
+  white-space: normal;
+}
+
+
+/* =========================================================
+   Operator sidebar + operator club dashboard
+========================================================= */
+.operator-sidebar-menu {
+  display: none;
+  width: 183px;
+  min-height: 264px;
+  border-radius: 16px;
+  background: #f5f5f5;
+  padding: 30px 10px;
+  text-align: center;
+}
+
+.operator-sidebar-menu h2 {
+  display: none;
+}
+
+.operator-sidebar-menu nav {
+  display: grid;
+  gap: 27px;
+}
+
+.operator-sidebar-menu button {
+  border: 0;
+  background: transparent;
+  color: #000000;
+  font-size: 16px;
+  line-height: 1.2;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.operator-sidebar-menu .operator-menu-title,
+.operator-sidebar-menu button.is-active {
+  color: var(--yellow);
+  font-weight: 900;
+}
+
+.dynamic-panel[data-panel="operator-dashboard"].is-active {
+  display: grid;
+  gap: 32px;
+}
+
+.operator-dashboard-header {
+  padding: 8px 0 0;
+}
+
+.operator-dashboard-header h2 {
+  margin: 0 0 10px;
+  color: #000000;
+  font-size: 35px;
+  line-height: 1.2;
+  font-weight: 800;
+}
+
+.operator-dashboard-header p {
+  margin: 0;
+  color: rgba(0, 0, 0, 0.25);
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.operator-club-summary {
+  min-height: 313px;
+  padding: 38px 42px 25px;
+}
+
+.operator-club-top {
+  display: grid;
+  grid-template-columns: 121px 1fr auto;
+  align-items: start;
+  gap: 22px;
+}
+
+.operator-club-logo {
+  width: 121px;
+  height: 121px;
+  border-radius: 8px;
+  background: #ffffff;
+  overflow: hidden;
+  position: relative;
+}
+
+.operator-club-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.operator-club-logo.is-empty::before {
+  content: "ON";
+  color: var(--blue);
+  font-size: 34px;
+  font-weight: 900;
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.operator-club-title h3 {
+  margin: 24px 0 8px;
+  color: #000000;
+  font-size: 35px;
+  line-height: 1.15;
+  font-weight: 800;
+}
+
+.operator-club-title p {
+  margin: 0;
+  color: rgba(0, 0, 0, 0.25);
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.operator-outline-btn {
+  height: 37px;
+  border: 1px solid rgba(0, 0, 0, 0.25);
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 0 20px;
+  color: rgba(0, 0, 0, 0.25);
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.operator-summary-line {
+  height: 1px;
+  background: #d9d9d9;
+  margin: 38px 0 22px;
+}
+
+.operator-summary-bottom {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 60px;
+  align-items: center;
+}
+
+.operator-recruit-summary {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 8px 18px;
+  align-items: center;
+}
+
+.operator-recruit-summary strong {
+  color: #000000;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.operator-recruit-summary span {
+  color: rgba(0, 0, 0, 0.25);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.operator-recruit-summary b {
+  color: rgba(0, 0, 0, 0.25);
+}
+
+.operator-recruit-summary em {
+  width: 68px;
+  height: 26px;
+  border-radius: 8px;
+  background: #74b79e;
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.operator-stats {
+  border-left: 1px solid #d9d9d9;
+  padding-left: 62px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+}
+
+.operator-stats span {
+  display: block;
+  margin-bottom: 24px;
+  color: #000000;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.operator-stats strong {
+  color: #000000;
+  font-size: 23px;
+  font-weight: 800;
+}
+
+.operator-two-column {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+}
+
+.operator-mini-section {
+  min-height: 648px;
+  padding: 30px 32px;
+}
+
+.operator-mini-section .section-head {
+  margin-bottom: 36px;
+}
+
+.operator-applicant-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.operator-applicant-table thead {
+  background: #f4f4f4;
+}
+
+.operator-applicant-table th,
+.operator-applicant-table td {
+  height: 48px;
+  border-bottom: 1px solid #d9d9d9;
+  text-align: center;
+  color: #000000;
+  font-weight: 600;
+}
+
+.operator-status {
+  min-width: 41px;
+  height: 19px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #000000;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.operator-status.wait {
+  background: #d9d9d9;
+}
+
+.operator-status.interview {
+  background: var(--yellow);
+}
+
+.operator-write-btn {
+  width: 128px;
+  height: 46px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--yellow);
+  color: #ffffff;
+  font-size: 23px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.operator-post-list {
+  display: grid;
+}
+
+.operator-post-list article {
+  min-height: 77px;
+  border-bottom: 1px solid #d9d9d9;
+  display: grid;
+  grid-template-columns: 68px 1fr 86px;
+  align-items: center;
+  gap: 16px;
+}
+
+.operator-post-list span {
+  height: 29px;
+  border: 1px solid #000000;
+  border-radius: 23.5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #000000;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.operator-post-list strong {
+  color: #000000;
+  font-size: 18px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.operator-post-list em {
+  color: #000000;
+  font-size: 14px;
+  font-style: normal;
+  font-weight: 500;
+}
+
+.operator-board-link {
+  width: 100%;
+  height: 49px;
+  margin-top: 44px;
+  border: 1px solid rgba(0, 0, 0, 0.25);
+  border-radius: 12px;
+  background: #ffffff;
+  color: #000000;
+  font-size: 25px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.operator-log-section,
+.operator-notification-section {
+  padding: 30px 42px;
+}
+
+.operator-log-list {
+  margin-top: 32px;
+  display: grid;
+}
+
+.operator-log-list article {
+  min-height: 58px;
+  border-bottom: 1px solid #d9d9d9;
+  display: grid;
+  grid-template-columns: 10px 1fr auto;
+  align-items: center;
+  gap: 20px;
+}
+
+.operator-log-list span {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--yellow);
+}
+
+.operator-log-list p {
+  margin: 0;
+  color: #000000;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.operator-log-list em {
+  color: #000000;
+  font-size: 15px;
+  font-style: normal;
+}
+
+.operator-notice-list {
+  margin: 32px auto 0;
+  width: min(841px, 100%);
+  display: grid;
+  gap: 8px;
+}
+
+.operator-notice-list article {
+  min-height: 70px;
+  border: 1px solid rgba(0, 0, 0, 0.25);
+  border-radius: 16px;
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  align-items: center;
+  gap: 20px;
+  padding: 0 34px;
+}
+
+.operator-notice-list span {
+  color: var(--blue);
+}
+
+.operator-notice-list p {
+  margin: 0;
+  color: #000000;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.operator-notice-list em {
+  min-width: 66px;
+  height: 26px;
+  border-radius: 4px;
+  background: #d9d9d9;
+  color: #000000;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+  font-size: 13px;
+  font-style: normal;
+}
+
+@media (max-width: 1180px) {
+  .operator-two-column {
+    grid-template-columns: 1fr;
+  }
+
+  .operator-summary-bottom {
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+
+  .operator-stats {
+    border-left: 0;
+    padding-left: 0;
+  }
+}
+
+@media (max-width: 760px) {
+  .operator-club-top {
+    grid-template-columns: 1fr;
+  }
+
+  .operator-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .operator-post-list article,
+  .operator-log-list article,
+  .operator-notice-list article {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 18px;
+  }
+}
+
+
+/* final operator sidebar override */
+.operator-sidebar-menu {
+  min-height: 264px !important;
+  padding: 30px 10px !important;
+}
+.operator-sidebar-menu nav {
+  display: grid !important;
+  gap: 27px !important;
+}
+.operator-sidebar-menu .operator-menu-title {
+  color: var(--yellow) !important;
+}
+
+
+/* =========================================================
+   MyPage sidebar color fix
+   - 기본 글자색: 검정
+   - 클릭/선택된 메뉴만 노란색
+   - 클릭 시 생기는 기본 테두리/밑줄 제거
+========================================================= */
+.mypage-sidebar-menu button,
+.operator-sidebar-menu button {
+  color: #000000 !important;
+  text-decoration: none !important;
+  outline: none;
+  border: 0 !important;
+  background: transparent !important;
+}
+
+.mypage-sidebar-menu button.is-active,
+.operator-sidebar-menu button.is-active {
+  color: var(--yellow) !important;
+  font-weight: 900;
+}
+
+.operator-sidebar-menu .operator-menu-title {
+  color: #000000 !important;
+}
+
+.operator-sidebar-menu .operator-menu-title.is-active {
+  color: var(--yellow) !important;
+}
+
+.mypage-sidebar-menu button:focus,
+.operator-sidebar-menu button:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+.mypage-sidebar-menu button:focus-visible,
+.operator-sidebar-menu button:focus-visible {
+  outline: none;
+  box-shadow: none;
+}

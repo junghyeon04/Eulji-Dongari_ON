@@ -3,32 +3,13 @@ if (!isLoggedIn()) {
   openLoginRequiredModal("마이페이지는 로그인 후 이용할 수 있습니다.<br />로그인 페이지로 이동하시겠습니까?");
 } else {
 /* =========================================================
-   MyPage mock state
-   나중에 백엔드 연결 시 아래 데이터 대신 API 응답을 넣으면 됨.
-
-   연결 예정:
-   - GET /api/users/me
-   - GET /api/users/me/clubs
-   - GET /api/users/me/bookmarks
-   - GET /api/users/me/applications
-   - PATCH /api/users/me
+   MyPage
+   - 기본 화면: 일반 회원 마이페이지
+   - 내 프로필: 기본 정보 / 계정 보안
+   - 운영자 신청/운영진: 운영 동아리 메뉴 추가
 ========================================================= */
 
 const BOOKMARK_STORAGE_KEY = "bookmarkedClubs";
-
-
-function getStoredUser() {
-  try {
-    return (
-      JSON.parse(sessionStorage.getItem("currentUser")) ||
-      JSON.parse(localStorage.getItem("currentUser")) ||
-      JSON.parse(localStorage.getItem("registeredUser")) ||
-      null
-    );
-  } catch {
-    return null;
-  }
-}
 
 const mypageState = {
   user: {
@@ -36,23 +17,9 @@ const mypageState = {
     email: "",
     department: "",
     studentId: "",
+    joinDate: "",
   },
-  joinedClubs: [
-    {
-      clubId: 1,
-      name: "멋쟁이사자처럼",
-      typeText: "중앙동아리",
-      category: "기타",
-      image: "",
-    },
-    {
-      clubId: 5,
-      name: "FLASH",
-      typeText: "일반동아리",
-      category: "문화/예술/공연",
-      image: "./images/flash-poster.png",
-    },
-  ],
+  joinedClubs: [],
   activity: [
     {
       key: "posts",
@@ -79,24 +46,7 @@ const mypageState = {
       icon: "bookmark",
     },
   ],
-  notifications: [
-    {
-      message: "동아리 ON 개발팀에서 새로운 공지가 등록되었습니다.",
-      date: "1시간 전",
-    },
-    {
-      message: "F.L.A.S.H에서 새로운 공지가 작성되었습니다.",
-      date: "14시간 전",
-    },
-    {
-      message: "000 동아리의 지원 결과가 발표되었습니다.",
-      date: "2026.07.08",
-    },
-    {
-      message: "000 동아리의 지원 마감이 하루 남았습니다.",
-      date: "2026.07.01",
-    },
-  ],
+  notifications: [],
 };
 
 const STATUS_MAP = {
@@ -113,6 +63,73 @@ const STATUS_MAP = {
     className: "status-always",
   },
 };
+
+function safeJsonParse(value) {
+  try {
+    return value ? JSON.parse(value) : null;
+  } catch {
+    return null;
+  }
+}
+
+function getStoredUser() {
+  return (
+    safeJsonParse(sessionStorage.getItem("currentUser")) ||
+    safeJsonParse(localStorage.getItem("currentUser")) ||
+    safeJsonParse(localStorage.getItem("registeredUser")) ||
+    null
+  );
+}
+
+function saveStoredUser(nextUser) {
+  const registeredUser = safeJsonParse(localStorage.getItem("registeredUser")) || {};
+  const mergedRegisteredUser = {
+    ...registeredUser,
+    ...nextUser,
+  };
+
+  localStorage.setItem("registeredUser", JSON.stringify(mergedRegisteredUser));
+
+  if (localStorage.getItem("currentUser")) {
+    localStorage.setItem("currentUser", JSON.stringify({
+      ...safeJsonParse(localStorage.getItem("currentUser")),
+      ...nextUser,
+    }));
+  }
+
+  if (sessionStorage.getItem("currentUser")) {
+    sessionStorage.setItem("currentUser", JSON.stringify({
+      ...safeJsonParse(sessionStorage.getItem("currentUser")),
+      ...nextUser,
+    }));
+  }
+}
+
+function getDisplayUser() {
+  const storedUser = getStoredUser();
+
+  return {
+    ...mypageState.user,
+    ...(storedUser || {}),
+    joinDate: storedUser?.joinDate || storedUser?.createdAt || storedUser?.createdAtText || "2026.06.01",
+  };
+}
+
+function isOperatorUser() {
+  const user = getDisplayUser();
+
+  return (
+    user.role === "ROLE_CLUB_ADMIN" ||
+    user.signupRole === "ROLE_CLUB_ADMIN_PENDING" ||
+    user.operatorStatus === "PENDING" ||
+    Boolean(user.operatorRequest)
+  );
+}
+
+function getOperatorRequest() {
+  const user = getDisplayUser();
+  return user.operatorRequest || {};
+}
 
 function getSavedClubs() {
   try {
@@ -164,18 +181,89 @@ function iconTemplate(type) {
 }
 
 function renderProfile() {
-  const storedUser = getStoredUser();
-  const user = storedUser || mypageState.user;
+  const user = getDisplayUser();
 
-  const name = user.name || "";
-  const email = user.email || "";
-  const department = user.department || "";
-  const studentId = user.studentId || user.studentid || "";
-
-  document.querySelector("#profileName").textContent = name || "이름 없음";
-  document.querySelector("#profileEmail").textContent = email;
+  document.querySelector("#profileName").textContent = user.name || "이름 없음";
+  document.querySelector("#profileEmail").textContent = user.email || "";
   document.querySelector("#profileMeta").textContent =
-    department || studentId ? `${department} ㅣ ${studentId}` : "";
+    user.department || user.studentId ? `${user.department || ""} ㅣ ${user.studentId || ""}` : "";
+}
+
+function renderProfileDetail() {
+  const user = getDisplayUser();
+
+  const fields = {
+    name: user.name || "-",
+    department: user.department || "-",
+    studentId: user.studentId || user.studentid || "-",
+    email: user.email || "-",
+    joinDate: user.joinDate || "-",
+  };
+
+  Object.entries(fields).forEach(([key, value]) => {
+    const target = document.querySelector(`[data-profile-field="${key}"]`);
+    if (target) target.textContent = value;
+  });
+}
+
+function renderOperatorArea() {
+  const operatorMenu = document.querySelector("#operatorSidebarMenu");
+  if (!operatorMenu) return;
+
+  const shouldShowOperatorMenu = isOperatorUser();
+  operatorMenu.style.display = shouldShowOperatorMenu ? "block" : "none";
+
+  const request = getOperatorRequest();
+  const clubName = request.clubName || "운영 동아리";
+  const statusText = request.clubName
+    ? `${request.clubName} 운영자 신청 상태입니다. 학교 승인 후 실제 관리 기능을 사용할 수 있습니다.`
+    : "학교 승인 후 동아리 정보 수정 기능을 사용할 수 있습니다.";
+
+  const operatorClubName = document.querySelector("#operatorClubName");
+  const operatorDashboardClubName = document.querySelector("#operatorDashboardClubName");
+  const operatorClubStatus = document.querySelector("#operatorClubStatus");
+
+  if (operatorClubName) operatorClubName.textContent = clubName;
+  if (operatorDashboardClubName) operatorDashboardClubName.textContent = clubName;
+  if (operatorClubStatus) operatorClubStatus.textContent = statusText;
+}
+
+function setProfileEditMode(isEditMode) {
+  const editButton = document.querySelector("#profileInfoEditBtn");
+  const editableKeys = ["name", "department", "studentId"];
+  const user = getDisplayUser();
+
+  if (isEditMode) {
+    editableKeys.forEach((key) => {
+      const field = document.querySelector(`[data-profile-field="${key}"]`);
+      if (!field) return;
+
+      const value = key === "studentId" ? (user.studentId || user.studentid || "") : (user[key] || "");
+      field.innerHTML = `<input class="profile-edit-input" data-profile-input="${key}" type="text" value="${value}" />`;
+    });
+
+    editButton.textContent = "저장";
+    editButton.dataset.mode = "edit";
+    return;
+  }
+
+  const nextUser = {
+    name: document.querySelector('[data-profile-input="name"]')?.value.trim() || "",
+    department: document.querySelector('[data-profile-input="department"]')?.value.trim() || "",
+    studentId: document.querySelector('[data-profile-input="studentId"]')?.value.trim() || "",
+  };
+
+  if (!nextUser.name || !nextUser.department || !nextUser.studentId) {
+    alert("이름, 학과, 학번을 모두 입력해주세요.");
+    return;
+  }
+
+  saveStoredUser(nextUser);
+  editButton.textContent = "정보 수정";
+  editButton.dataset.mode = "view";
+
+  renderProfile();
+  renderProfileDetail();
 }
 
 function joinedClubTemplate(club) {
@@ -214,7 +302,6 @@ function renderJoinedClubs() {
 
   bindJoinedClubLinks();
 }
-
 
 function bindJoinedClubLinks() {
   document.querySelectorAll("[data-club-link]").forEach((item) => {
@@ -350,16 +437,20 @@ function setActiveTab(tabName) {
     button.classList.toggle("is-active", button.dataset.tab === tabName);
   });
 
+  document.querySelectorAll(".operator-sidebar-menu [data-tab]").forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.tab === tabName);
+  });
+
   document.querySelectorAll("[data-panel]").forEach((panel) => {
     panel.classList.toggle("is-active", panel.dataset.panel === tabName);
   });
 
-  if (tabName === "scraps") {
-    renderScraps();
+  if (tabName === "profile") {
+    renderProfileDetail();
   }
 
-  if (tabName === "overview") {
-    renderActivity();
+  if (tabName === "scraps") {
+    renderScraps();
   }
 }
 
@@ -393,7 +484,42 @@ document.querySelector(".profile-edit-btn")?.addEventListener("click", () => {
   window.location.href = "./index.html";
 });
 
+document.querySelector("#profileInfoEditBtn")?.addEventListener("click", () => {
+  const button = document.querySelector("#profileInfoEditBtn");
+  const isEditMode = button.dataset.mode === "edit";
+  setProfileEditMode(!isEditMode);
+});
+
+document.querySelector("#changePasswordBtn")?.addEventListener("click", () => {
+  const nextPassword = prompt("새 비밀번호를 입력해주세요. (8자 이상)");
+
+  if (nextPassword === null) return;
+
+  if (nextPassword.trim().length < 8) {
+    alert("비밀번호는 8자 이상 입력해주세요.");
+    return;
+  }
+
+  const registeredUser = safeJsonParse(localStorage.getItem("registeredUser")) || {};
+  registeredUser.password = nextPassword.trim();
+  localStorage.setItem("registeredUser", JSON.stringify(registeredUser));
+
+  alert("비밀번호가 변경되었습니다.");
+});
+
+document.querySelector("#withdrawAccountBtn")?.addEventListener("click", () => {
+  const ok = confirm("정말 회원 탈퇴하시겠습니까? 저장된 회원가입 정보와 로그인 정보가 삭제됩니다.");
+
+  if (!ok) return;
+
+  localStorage.clear();
+  sessionStorage.clear();
+  window.location.href = "./index.html";
+});
+
 renderProfile();
+renderProfileDetail();
+renderOperatorArea();
 renderJoinedClubs();
 renderActivity();
 renderNotifications();
