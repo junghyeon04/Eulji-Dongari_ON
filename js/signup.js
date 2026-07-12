@@ -81,14 +81,21 @@ function validateCurrentStep() {
   }
 
   if (currentStep === 2) {
-    const name = document.querySelector("#signupName").value.trim();
-    const studentId = document.querySelector("#signupStudentId").value.trim();
     const department = document.querySelector("#signupDepartment").value.trim();
+    const studentId = document.querySelector("#signupStudentId").value.trim();
+    const name = document.querySelector("#signupName").value.trim();
     const password = document.querySelector("#signupPassword").value.trim();
     const passwordCheck = document.querySelector("#signupPasswordCheck").value.trim();
 
-    if (!name || !studentId || !department || !password || !passwordCheck) {
+    const passwordRule = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/;
+
+    if (!department || !studentId || !name || !password || !passwordCheck) {
       alert("기본 정보를 모두 입력해주세요.");
+      return false;
+    }
+
+    if (!passwordRule.test(password)) {
+      alert("비밀번호는 8자 이상, 영문/숫자/특수문자를 모두 포함해야 합니다.");
       return false;
     }
 
