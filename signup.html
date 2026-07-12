@@ -55,32 +55,44 @@
           <button type="button" class="signup-next-btn single-next" data-next>다음</button>
         </section>
 
-        <section class="signup-step" data-step="2">
+        <section class="signup-step signup-basic-step" data-step="2">
           <h1>기본 정보를 입력해 주세요</h1>
 
-          <div class="signup-field">
-            <label for="signupName">이름 <span>*</span></label>
-            <input type="text" id="signupName" placeholder="이름을 입력해 주세요." />
-          </div>
+          <div class="signup-basic-box">
+            <div class="signup-field">
+              <label for="signupDepartment">학과 <span>*</span></label>
+              <select id="signupDepartment">
+                <option value="">학과를 선택해 주세요.</option>
+                <option value="빅데이터인공지능학과">빅데이터인공지능학과</option>
+                <option value="의료IT학과">의료IT학과</option>
+                <option value="스마트의료정보학부">스마트의료정보학부</option>
+                <option value="휴먼서비스학부 시각디자인전공">휴먼서비스학부 시각디자인전공</option>
+                <option value="간호학과">간호학과</option>
+                <option value="치위생학과">치위생학과</option>
+                <option value="첨단학부">첨단학부</option>
+              </select>
+            </div>
 
-          <div class="signup-field">
-            <label for="signupStudentId">학번 <span>*</span></label>
-            <input type="text" id="signupStudentId" maxlength="20" placeholder="학번을 입력해 주세요." />
-          </div>
+            <div class="signup-field">
+              <label for="signupStudentId">학번 <span>*</span></label>
+              <input type="text" id="signupStudentId" maxlength="20" />
+            </div>
 
-          <div class="signup-field">
-            <label for="signupDepartment">학과 <span>*</span></label>
-            <input type="text" id="signupDepartment" placeholder="학과를 입력해 주세요." />
-          </div>
+            <div class="signup-field">
+              <label for="signupName">이름 <span>*</span></label>
+              <input type="text" id="signupName" />
+            </div>
 
-          <div class="signup-field">
-            <label for="signupPassword">비밀번호 <span>*</span></label>
-            <input type="password" id="signupPassword" placeholder="영문/숫자/특수문자 포함 8자 이상" />
-          </div>
+            <div class="signup-field">
+              <label for="signupPassword">비밀번호 <span>*</span></label>
+              <input type="password" id="signupPassword" />
+              <small class="password-rule-text">8자 이상, 영문/숫자/특수문자 조합</small>
+            </div>
 
-          <div class="signup-field">
-            <label for="signupPasswordCheck">비밀번호 확인 <span>*</span></label>
-            <input type="password" id="signupPasswordCheck" placeholder="비밀번호를 한 번 더 입력해 주세요." />
+            <div class="signup-field">
+              <label for="signupPasswordCheck">비밀번호 확인 <span>*</span></label>
+              <input type="password" id="signupPasswordCheck" />
+            </div>
           </div>
 
           <div class="signup-buttons">

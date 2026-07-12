@@ -495,8 +495,10 @@ document.querySelector("#changePasswordBtn")?.addEventListener("click", () => {
 
   if (nextPassword === null) return;
 
-  if (nextPassword.trim().length < 8) {
-    alert("비밀번호는 8자 이상 입력해주세요.");
+  const passwordRule = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/;
+
+  if (!passwordRule.test(nextPassword.trim())) {
+    alert("비밀번호는 8자 이상, 영문/숫자/특수문자를 모두 포함해야 합니다.");
     return;
   }
 
