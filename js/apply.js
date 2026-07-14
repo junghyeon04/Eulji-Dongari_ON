@@ -246,3 +246,28 @@ function initApplyPage() {
 document.querySelector("#clubApplicationForm").style.display = "none";
 renderApplyClubs();
 initApplyPage();
+
+
+/* 지원서 지원동기/자기소개 필드 복구 */
+document.querySelector("#clubApplicationForm")?.addEventListener("submit", (event) => {
+  const reasonInput = document.querySelector("#applicantReason");
+  const introInput = document.querySelector("#applicantIntro");
+
+  if (!reasonInput || !introInput) return;
+
+  const reason = reasonInput.value.trim();
+  const intro = introInput.value.trim();
+
+  if (!reason || !intro) {
+    event.preventDefault();
+    alert("지원동기와 자기소개를 입력해주세요.");
+    return;
+  }
+
+  const latestApplicationExtra = {
+    reason,
+    intro,
+  };
+
+  localStorage.setItem("latestApplicationExtra", JSON.stringify(latestApplicationExtra));
+}, true);
