@@ -42,7 +42,7 @@ const clubs = [
     category: "IT",
     description: "전국 최대규모 IT창업동아리",
     status: "OPEN",
-    image: "./images/likelion-poster.png",
+    image: "https://www.figma.com/api/mcp/asset/e921dd97-70c7-4765-bb0a-04f289afba3a",
   },
   {
     id: "2",
@@ -51,7 +51,7 @@ const clubs = [
     category: "DANCE",
     description: "열정 넘치는 사람들이 모인 댄스동아리",
     status: "CLOSED",
-    image: "",
+    image: "https://www.figma.com/api/mcp/asset/53774021-3314-489d-bd50-640ee7e952c9",
   },
   {
     id: "3",
@@ -60,7 +60,7 @@ const clubs = [
     category: "MUSIC",
     description: "깡과 의리로 뭉친 새밝소리",
     status: "CLOSED",
-    image: "",
+    image: "https://www.figma.com/api/mcp/asset/44e7b3ad-9b5d-4803-ab23-40f486228699",
   },
   {
     id: "4",
@@ -69,7 +69,7 @@ const clubs = [
     category: "PERFORMANCE",
     description: "무대 위를 빛내는 연극/뮤지컬 동아리",
     status: "CLOSED",
-    image: "",
+    image: "https://www.figma.com/api/mcp/asset/bef36369-6cf4-4185-b149-20adc1aac6d0",
   },
   {
     id: "9",
@@ -213,7 +213,7 @@ const clubs = [
     category: "PERFORMANCE",
     description: "사진동아리 F.L.A.S.H",
     status: "ALWAYS",
-    image: "./images/flash-poster.png",
+    image: "https://www.figma.com/api/mcp/asset/9b06a878-6e5b-4341-b7ab-a797c20d9803",
   },
   {
     id: "6",
@@ -222,7 +222,7 @@ const clubs = [
     category: "SPORTS",
     description: "을지대 유일무이 야구동아리",
     status: "ALWAYS",
-    image: "",
+    image: "https://www.figma.com/api/mcp/asset/cf907e5d-7457-4148-86fd-221629a9e630",
   },
   {
     id: "7",
