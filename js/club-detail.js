@@ -366,8 +366,78 @@ Object.entries(EXTRA_CLUB_NAMES).forEach(([id, [name, description, type, categor
 
 const queryParams = new URLSearchParams(window.location.search);
 const selectedClubId = queryParams.get("clubId") || "1";
-const club = CLUB_DETAILS[selectedClubId] || CLUB_DETAILS["1"];
+let club = CLUB_DETAILS[selectedClubId] || CLUB_DETAILS["1"];
 BOARD_STORAGE_KEY = `clubBoardPosts_${club.id}`;
+
+const LOCAL_CLUB_IMAGES = {
+  "멋쟁이사자처럼": "https://www.figma.com/api/mcp/asset/e921dd97-70c7-4765-bb0a-04f289afba3a",
+  DNG: "https://www.figma.com/api/mcp/asset/53774021-3314-489d-bd50-640ee7e952c9",
+  "새밝소리": "https://www.figma.com/api/mcp/asset/44e7b3ad-9b5d-4803-ab23-40f486228699",
+  "LUNATIC+": "https://www.figma.com/api/mcp/asset/bef36369-6cf4-4185-b149-20adc1aac6d0",
+  "F.L.A.S.H": "https://www.figma.com/api/mcp/asset/9b06a878-6e5b-4341-b7ab-a797c20d9803",
+  FLASH: "https://www.figma.com/api/mcp/asset/9b06a878-6e5b-4341-b7ab-a797c20d9803",
+  "야구의 숲": "https://www.figma.com/api/mcp/asset/cf907e5d-7457-4148-86fd-221629a9e630",
+};
+
+function mapApiClubToDetail(apiClub) {
+  const fallback = CLUB_DETAILS[String(apiClub.clubId)] || {};
+  const recruitmentStatus = apiClub.recruitmentStatus || apiClub.status || fallback.status || "UNKNOWN";
+  const image = apiClub.imageUrl || LOCAL_CLUB_IMAGES[apiClub.name] || fallback.image || "";
+
+  return {
+    ...fallback,
+    id: String(apiClub.clubId),
+    name: apiClub.name || fallback.name || "",
+    description: apiClub.shortDescription || fallback.description || "",
+    shortDescription: apiClub.shortDescription || fallback.shortDescription || "",
+    type: apiClub.type || fallback.type || "CENTRAL",
+    category: apiClub.category || fallback.category || "ETC",
+    status: recruitmentStatus,
+    image,
+    coverImage: fallback.coverImage || "",
+    logoImage: fallback.logoImage || image,
+    posterImage: fallback.posterImage || image,
+    intro: apiClub.fullDescription || fallback.intro || apiClub.shortDescription || "",
+    recruitTarget: apiClub.recruitCondition || fallback.recruitTarget || "을지대학교 재학생",
+    recruitPeriod: apiClub.recruitPeriod || apiClub.recruitmentStatusLabel || fallback.recruitPeriod || "모집 정보 없음",
+    activityPeriod: fallback.activityPeriod || "학기 중 상시 활동",
+    schedule: apiClub.activityInfo || fallback.schedule || "동아리별 상이",
+    recruitContent: apiClub.activityInfo || fallback.recruitContent || `${apiClub.name}의 주요 활동 진행`,
+    recruitProcess: fallback.recruitProcess || "지원서 접수 → 운영진 확인 → 결과 안내",
+    phone: fallback.phone || "010-0000-0000",
+    email: fallback.email || "club@eulji.ac.kr",
+    contactUrl: apiClub.contactUrl || fallback.contactUrl || "",
+    isBookmarked: Boolean(apiClub.isBookmarked),
+    tags: fallback.tags || [`#${CATEGORY_MAP[apiClub.category] || "동아리"}`, "#을지대학교"],
+    activities: fallback.activities || [apiClub.activityInfo || "동아리 활동"],
+  };
+}
+
+async function loadClubDetailFromApi() {
+  if (typeof apiRequest !== "function") return;
+
+  try {
+    const result = await apiRequest(`/api/clubs/${selectedClubId}`);
+    club = mapApiClubToDetail(result.data);
+    BOARD_STORAGE_KEY = `clubBoardPosts_${club.id}`;
+
+    if (club.isBookmarked && !isSaved(club.id)) {
+      const saved = getSavedClubs();
+      saved.push({
+        id: club.id,
+        name: club.name,
+        description: club.description,
+        status: club.status,
+        image: club.image,
+        category: club.category,
+        type: club.type,
+      });
+      saveClubs(saved);
+    }
+  } catch (error) {
+    console.warn("동아리 상세 API 조회 실패, 기존 더미 데이터 사용:", error);
+  }
+}
 
 
 function renderClubDetail() {
@@ -757,11 +827,21 @@ function updateDetailScrapButton() {
   button.classList.toggle("is-active", saved);
 }
 
-function toggleScrap() {
+async function toggleScrap() {
+  if (isLoggedIn() && typeof apiRequest === "function") {
+    try {
+      await apiRequest(`/api/clubs/${club.id}/bookmarks`, {
+        method: "POST",
+      });
+    } catch (error) {
+      console.warn("스크랩 API 처리 실패, 로컬 스크랩으로 처리:", error);
+    }
+  }
+
   let savedClubs = getSavedClubs();
 
   if (isSaved(club.id)) {
-    savedClubs = savedClubs.filter((savedClub) => savedClub.id !== club.id);
+    savedClubs = savedClubs.filter((savedClub) => String(savedClub.id) !== String(club.id));
   } else {
     savedClubs.push({
       id: club.id,
@@ -769,7 +849,7 @@ function toggleScrap() {
       description: club.description,
       status: club.status,
       image: club.image,
-      category: "IT",
+      category: club.category,
       type: club.type,
     });
   }
@@ -1061,9 +1141,15 @@ detailApplyBtnGuard?.addEventListener("click", (event) => {
   }
 });
 
-renderClubDetail();
-updateDetailScrapButton();
-initAdminTools();
-renderBoardPosts();
-renderPostCategoryTabs();
-showBoardList();
+async function initClubDetailPage() {
+  await loadClubDetailFromApi();
+
+  renderClubDetail();
+  updateDetailScrapButton();
+  initAdminTools();
+  renderBoardPosts();
+  renderPostCategoryTabs();
+  showBoardList();
+}
+
+initClubDetailPage();

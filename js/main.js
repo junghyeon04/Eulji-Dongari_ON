@@ -2,6 +2,39 @@ const CHECKBOX_OFF = "./images/checkbox.svg";
 const CHECKBOX_ON = "./images/checkbox-on.svg";
 const STORAGE_KEY = "bookmarkedClubs";
 
+const STATUS_MAP = {
+  OPEN: {
+    text: "모집 중",
+    className: "status-open",
+  },
+  CLOSED: {
+    text: "모집마감",
+    className: "status-closed",
+  },
+  ALWAYS: {
+    text: "상시 모집",
+    className: "status-always",
+  },
+  ALWAYS_OPEN: {
+    text: "상시 모집",
+    className: "status-always",
+  },
+  UNKNOWN: {
+    text: "모집 정보 없음",
+    className: "status-unknown",
+  },
+};
+
+const LOCAL_CLUB_IMAGES = {
+  "멋쟁이사자처럼": "https://www.figma.com/api/mcp/asset/e921dd97-70c7-4765-bb0a-04f289afba3a",
+  DNG: "https://www.figma.com/api/mcp/asset/53774021-3314-489d-bd50-640ee7e952c9",
+  "새밝소리": "https://www.figma.com/api/mcp/asset/44e7b3ad-9b5d-4803-ab23-40f486228699",
+  "LUNATIC+": "https://www.figma.com/api/mcp/asset/bef36369-6cf4-4185-b149-20adc1aac6d0",
+  "F.L.A.S.H": "https://www.figma.com/api/mcp/asset/9b06a878-6e5b-4341-b7ab-a797c20d9803",
+  FLASH: "https://www.figma.com/api/mcp/asset/9b06a878-6e5b-4341-b7ab-a797c20d9803",
+  "야구의 숲": "https://www.figma.com/api/mcp/asset/cf907e5d-7457-4148-86fd-221629a9e630",
+};
+
 function getSavedClubs() {
   try {
     return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
@@ -15,7 +48,73 @@ function saveClubs(clubs) {
 }
 
 function isSaved(clubId) {
-  return getSavedClubs().some((club) => club.id === clubId);
+  return getSavedClubs().some((club) => String(club.id) === String(clubId));
+}
+
+function convertClubFromApi(apiClub) {
+  const recruitmentStatus = apiClub.recruitmentStatus || "UNKNOWN";
+
+  return {
+    id: String(apiClub.clubId),
+    name: apiClub.name,
+    type: apiClub.type,
+    category: apiClub.category,
+    description: apiClub.shortDescription || "",
+    status: recruitmentStatus,
+    statusLabel: apiClub.recruitmentStatusLabel || STATUS_MAP[recruitmentStatus]?.text || "모집 정보 없음",
+    image: apiClub.imageUrl || LOCAL_CLUB_IMAGES[apiClub.name] || "",
+  };
+}
+
+function createHomeClubCard(club) {
+  const statusInfo = STATUS_MAP[club.status] || STATUS_MAP.UNKNOWN;
+  const imageHtml = club.image
+    ? `<img src="${club.image}" alt="${club.name} 모집 이미지" referrerpolicy="no-referrer" onerror="this.style.display='none'" />`
+    : "";
+
+  return `
+    <article class="club-card" data-club-id="${club.id}" data-club-name="${club.name}" data-status="${club.status}">
+      <div class="club-thumb">
+        ${imageHtml}
+      </div>
+      <div class="club-content">
+        <h3>${club.name}</h3>
+        <p>${club.description}</p>
+        <div class="club-bottom">
+          <em class="tag ${statusInfo.className}" data-status-badge>${club.statusLabel || statusInfo.text}</em>
+          <button type="button" class="bookmark-btn" aria-label="${club.name} 찜하기">
+            <img src="${isSaved(club.id) ? CHECKBOX_ON : CHECKBOX_OFF}" alt="" class="bookmark-icon" />
+          </button>
+        </div>
+      </div>
+    </article>
+  `;
+}
+
+async function loadHomeClubsFromApi() {
+  if (typeof apiRequest !== "function") return;
+
+  try {
+    const result = await apiRequest("/api/clubs");
+    const clubs = (result.data || []).map(convertClubFromApi);
+    const sections = document.querySelectorAll(".club-section");
+
+    sections.forEach((section) => {
+      const title = section.querySelector(".section-title-row h2, .section-title h2")?.textContent?.trim();
+      const grid = section.querySelector(".club-grid");
+      if (!grid) return;
+
+      const type = title === "일반동아리" ? "GENERAL" : "CENTRAL";
+      const limit = type === "GENERAL" ? 3 : 4;
+      const items = clubs.filter((club) => club.type === type).slice(0, limit);
+
+      if (items.length > 0) {
+        grid.innerHTML = items.map(createHomeClubCard).join("");
+      }
+    });
+  } catch (error) {
+    console.warn("홈 동아리 API 조회 실패, 기존 HTML 카드 사용:", error);
+  }
 }
 
 function getClubDataFromCard(card) {
@@ -36,6 +135,8 @@ function getClubDataFromCard(card) {
 function updateBookmarkButtons() {
   document.querySelectorAll(".bookmark-btn").forEach((button) => {
     const card = button.closest(".club-card");
+    if (!card) return;
+
     const icon = button.querySelector("img");
     const clubId = card.dataset.clubId;
     const clubName = card.dataset.clubName;
@@ -52,71 +153,54 @@ function updateBookmarkButtons() {
   });
 }
 
-document.querySelectorAll(".bookmark-btn").forEach((button) => {
-  button.addEventListener("click", (event) => {
-    event.stopPropagation();
+function bindBookmarkButtons() {
+  document.querySelectorAll(".bookmark-btn").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
 
-    const card = button.closest(".club-card");
-    const club = getClubDataFromCard(card);
+      const card = button.closest(".club-card");
+      const club = getClubDataFromCard(card);
 
-    let savedClubs = getSavedClubs();
+      let savedClubs = getSavedClubs();
 
-    if (isSaved(club.id)) {
-      savedClubs = savedClubs.filter((savedClub) => savedClub.id !== club.id);
-    } else {
-      savedClubs.push(club);
-    }
+      if (isSaved(club.id)) {
+        savedClubs = savedClubs.filter((savedClub) => String(savedClub.id) !== String(club.id));
+      } else {
+        savedClubs.push(club);
+      }
 
-    saveClubs(savedClubs);
-    updateBookmarkButtons();
-  });
-});
-
-document.querySelectorAll(".feature-card").forEach((card) => {
-  card.addEventListener("click", () => {
-    card.classList.toggle("is-back");
-  });
-
-  card.addEventListener("keydown", (event) => {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      card.classList.toggle("is-back");
-    }
-  });
-});
-
-const searchForm = document.querySelector(".search-bar");
-
-if (searchForm) {
-  searchForm.addEventListener("submit", (event) => {
-    event.preventDefault();
+      saveClubs(savedClubs);
+      updateBookmarkButtons();
+    });
   });
 }
 
-/* ===== Recruitment status: 운영진 관리 페이지/API 연동 대비 =====
-   지금은 HTML의 data-status 값을 읽어서 표시함.
-   백엔드 연결 후에는 GET /api/clubs 응답의 status 값으로 data-status를 바꾸거나,
-   카드 자체를 JS로 렌더링하면 됨.
+function initFeatureCards() {
+  document.querySelectorAll(".feature-card").forEach((card) => {
+    card.addEventListener("click", () => {
+      card.classList.toggle("is-back");
+    });
 
-   예상 status 값:
-   OPEN   -> 모집 중
-   CLOSED -> 모집마감
-   ALWAYS -> 상시 모집
-*/
-const STATUS_MAP = {
-  OPEN: {
-    text: "모집 중",
-    className: "status-open",
-  },
-  CLOSED: {
-    text: "모집마감",
-    className: "status-closed",
-  },
-  ALWAYS: {
-    text: "상시 모집",
-    className: "status-always",
-  },
-};
+    card.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        card.classList.toggle("is-back");
+      }
+    });
+  });
+}
+
+function initSearchForm() {
+  const searchForm = document.querySelector(".search-bar");
+
+  if (!searchForm) return;
+
+  searchForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const keyword = searchForm.querySelector("input")?.value.trim() || "";
+    window.location.href = `./club-list.html${keyword ? `?keyword=${encodeURIComponent(keyword)}` : ""}`;
+  });
+}
 
 function renderStatusBadges() {
   document.querySelectorAll(".club-card").forEach((card) => {
@@ -124,17 +208,15 @@ function renderStatusBadges() {
     if (!badge) return;
 
     const status = card.dataset.status || "CLOSED";
-    const statusInfo = STATUS_MAP[status] || STATUS_MAP.CLOSED;
+    const statusInfo = STATUS_MAP[status] || STATUS_MAP.UNKNOWN;
 
-    badge.textContent = statusInfo.text;
+    if (!badge.textContent.trim()) {
+      badge.textContent = statusInfo.text;
+    }
     badge.className = `tag ${statusInfo.className}`;
   });
 }
 
-/* 콘솔 테스트용:
-   changeClubStatus("1", "CLOSED")
-   실제 프로젝트에서는 운영진 관리 페이지에서 PATCH /api/clubs/{clubId} 성공 후 목록을 다시 조회하면 됨.
-*/
 function changeClubStatus(clubId, nextStatus) {
   const card = document.querySelector(`.club-card[data-club-id="${clubId}"]`);
   if (!card) return;
@@ -143,9 +225,7 @@ function changeClubStatus(clubId, nextStatus) {
   renderStatusBadges();
 }
 
-updateBookmarkButtons();
-renderStatusBadges();
-
+window.changeClubStatus = changeClubStatus;
 
 function fixHomeMoreLinks() {
   document.querySelectorAll(".club-section").forEach((section) => {
@@ -163,9 +243,6 @@ function fixHomeMoreLinks() {
     }
   });
 }
-
-fixHomeMoreLinks();
-
 
 function initHomeClubCardLinks() {
   document.querySelectorAll(".club-card").forEach((card) => {
@@ -192,4 +269,16 @@ function initHomeClubCardLinks() {
   });
 }
 
-initHomeClubCardLinks();
+async function initHomePage() {
+  await loadHomeClubsFromApi();
+
+  bindBookmarkButtons();
+  updateBookmarkButtons();
+  renderStatusBadges();
+  fixHomeMoreLinks();
+  initHomeClubCardLinks();
+  initFeatureCards();
+  initSearchForm();
+}
+
+initHomePage();

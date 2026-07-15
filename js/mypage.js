@@ -519,11 +519,89 @@ document.querySelector("#withdrawAccountBtn")?.addEventListener("click", () => {
   window.location.href = "./index.html";
 });
 
-renderProfile();
-renderProfileDetail();
-renderOperatorArea();
-renderJoinedClubs();
-renderActivity();
-renderNotifications();
-renderScraps();
+
+function normalizeApiClub(apiClub) {
+  return {
+    id: String(apiClub.clubId || apiClub.id || apiClub.club?.clubId || apiClub.club?.id || ""),
+    clubId: String(apiClub.clubId || apiClub.id || apiClub.club?.clubId || apiClub.club?.id || ""),
+    name: apiClub.name || apiClub.clubName || apiClub.club?.name || "-",
+    description: apiClub.shortDescription || apiClub.description || apiClub.club?.shortDescription || "",
+    status: apiClub.recruitmentStatus || apiClub.status || apiClub.club?.status || "UNKNOWN",
+    image: apiClub.imageUrl || apiClub.club?.imageUrl || "",
+    category: apiClub.category || apiClub.club?.category || "기타",
+    type: apiClub.type || apiClub.club?.type || "",
+    typeText: apiClub.type === "CENTRAL" || apiClub.club?.type === "CENTRAL" ? "중앙동아리" : "일반동아리",
+  };
+}
+
+function saveBookmarkListFromApi(bookmarks) {
+  const clubs = (bookmarks || []).map(normalizeApiClub).filter((club) => club.id);
+  saveClubs(clubs);
+}
+
+async function syncMyPageFromApi() {
+  if (typeof apiRequest !== "function") return;
+
+  try {
+    const profileResult = await apiRequest("/api/users/me");
+    const data = profileResult.data || {};
+
+    saveStoredUser({
+      userId: data.userId || data.userid || "",
+      email: data.email || "",
+      name: data.name || "",
+      studentId: data.studentId || data.studentid || "",
+      department: data.department || "",
+      role: data.role || "ROLE_STUDENT",
+      createdAt: data.createdAt || "",
+    });
+  } catch (error) {
+    console.warn("내 프로필 API 조회 실패:", error);
+    if (String(error.message || "").includes("토큰") || String(error.message || "").includes("로그인")) {
+      clearAuthSession?.();
+    }
+  }
+
+  try {
+    const joinedResult = await apiRequest("/api/users/me/clubs");
+    mypageState.joinedClubs = (joinedResult.data || []).map((club) => ({
+      clubId: String(club.clubId),
+      name: club.name,
+      typeText: club.type === "CENTRAL" ? "중앙동아리" : "일반동아리",
+      category: club.myRole === "ADMIN" ? "운영진" : "부원",
+      image: club.imageUrl || "",
+    }));
+  } catch (error) {
+    console.warn("내 가입 동아리 API 조회 실패:", error);
+  }
+
+  try {
+    const bookmarkResult = await apiRequest("/api/users/me/bookmarks");
+    saveBookmarkListFromApi(bookmarkResult.data || []);
+  } catch (error) {
+    console.warn("내 스크랩 API 조회 실패:", error);
+  }
+
+  try {
+    const appResult = await apiRequest("/api/users/me/applications");
+    const target = mypageState.activity.find((item) => item.key === "applications");
+    if (target) target.count = (appResult.data || []).length;
+  } catch (error) {
+    console.warn("내 지원 내역 API 조회 실패:", error);
+  }
+}
+
+async function initMyPage() {
+  await syncMyPageFromApi();
+
+  renderProfile();
+  renderProfileDetail();
+  renderOperatorArea();
+  renderJoinedClubs();
+  renderActivity();
+  renderNotifications();
+  renderScraps();
+}
+
+initMyPage();
 }
