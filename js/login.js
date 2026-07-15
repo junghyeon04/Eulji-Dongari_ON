@@ -3,25 +3,7 @@ function getRedirectTarget() {
   return params.get("redirect") || "index.html";
 }
 
-function getRegisteredUser() {
-  try {
-    return JSON.parse(localStorage.getItem("registeredUser")) || null;
-  } catch {
-    return null;
-  }
-}
-
-function clearLoginState() {
-  localStorage.removeItem("authToken");
-  localStorage.removeItem("currentUser");
-  localStorage.removeItem("userRole");
-
-  sessionStorage.removeItem("authToken");
-  sessionStorage.removeItem("currentUser");
-  sessionStorage.removeItem("userRole");
-}
-
-document.querySelector("#loginForm")?.addEventListener("submit", (event) => {
+document.querySelector("#loginForm")?.addEventListener("submit", async (event) => {
   event.preventDefault();
 
   const loginId = document.querySelector("#loginId")?.value.trim() || "";
@@ -33,57 +15,44 @@ document.querySelector("#loginForm")?.addEventListener("submit", (event) => {
     return;
   }
 
-  const registeredUser = getRegisteredUser();
+  const submitButton = event.submitter || document.querySelector("#loginForm button[type='submit']");
 
-  if (!registeredUser) {
-    alert("가입된 회원 정보가 없습니다. 먼저 회원가입을 진행해주세요.");
-    return;
-  }
-
-  const savedEmail = registeredUser.email || "";
-  const savedPassword = registeredUser.password || "";
-
-  if (loginId !== savedEmail) {
-    alert("아이디가 일치하지 않습니다.");
-    return;
-  }
-
-  if (loginPassword !== savedPassword) {
-    alert("비밀번호가 일치하지 않습니다.");
-    return;
-  }
-
-  /*
-    나중에 백엔드 연결:
-    POST /api/auth/login
-    {
-      email,
-      password
+  try {
+    if (submitButton) {
+      submitButton.disabled = true;
+      submitButton.textContent = "로그인 중...";
     }
 
-    로그인 유지 체크:
-    - 체크함: localStorage에 저장
-    - 체크 안 함: sessionStorage에 저장
-  */
+    const result = await apiRequest("/api/auth/login", {
+      method: "POST",
+      body: {
+        email: loginId,
+        password: loginPassword,
+        rememberMe: keepLogin,
+      },
+    });
 
-  const loginUser = {
-    email: registeredUser.email || "",
-    name: registeredUser.name || "",
-    studentId: registeredUser.studentId || "",
-    department: registeredUser.department || "",
-    role: registeredUser.role || "ROLE_STUDENT",
-    signupRole: registeredUser.signupRole || "ROLE_STUDENT",
-    operatorStatus: registeredUser.operatorStatus || "NONE",
-    operatorRequest: registeredUser.operatorRequest || null,
-  };
+    const user = saveAuthSession(result.data, keepLogin);
 
-  clearLoginState();
+    // 백엔드 응답에 email이 없을 수도 있어서 로그인 입력값을 보관
+    if (!user.email) {
+      const storage = keepLogin ? localStorage : sessionStorage;
+      const nextUser = {
+        ...user,
+        email: loginId,
+      };
+      storage.setItem("currentUser", JSON.stringify(nextUser));
+      localStorage.setItem("registeredUser", JSON.stringify(nextUser));
+    }
 
-  const storage = keepLogin ? localStorage : sessionStorage;
-
-  storage.setItem("authToken", "dev-access-token");
-  storage.setItem("currentUser", JSON.stringify(loginUser));
-  storage.setItem("userRole", loginUser.role || "ROLE_STUDENT");
-
-  window.location.href = `./${getRedirectTarget()}`;
+    window.location.href = `./${getRedirectTarget()}`;
+  } catch (error) {
+    console.error(error);
+    alert(error.message || "로그인에 실패했습니다.");
+  } finally {
+    if (submitButton) {
+      submitButton.disabled = false;
+      submitButton.textContent = "로그인";
+    }
+  }
 });
