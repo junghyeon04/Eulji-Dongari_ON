@@ -36,6 +36,30 @@ function getStoredUser() {
   );
 }
 
+function getBoardUserStorageKey() {
+  if (typeof getCurrentUserStorageKey === "function") return getCurrentUserStorageKey(getStoredUser());
+  const user = getStoredUser();
+  const raw = user.email || user.userId || user.userid || user.id || localStorage.getItem("lastLoginEmail") || "anonymous";
+  return String(raw).trim().toLowerCase().replace(/[^a-z0-9가-힣@._-]/gi, "_") || "anonymous";
+}
+
+function scopedBoardStorageKey(baseKey) {
+  if (typeof getUserScopedStorageKey === "function") return getUserScopedStorageKey(baseKey, getStoredUser());
+  return `${baseKey}_${getBoardUserStorageKey()}`;
+}
+
+function getScopedBoardList(baseKey) {
+  return safeJsonParse(localStorage.getItem(scopedBoardStorageKey(baseKey)), []) || [];
+}
+
+function setScopedBoardList(baseKey, value) {
+  localStorage.setItem(scopedBoardStorageKey(baseKey), JSON.stringify(value || []));
+}
+
+function setScopedBoardItem(baseKey, value) {
+  localStorage.setItem(scopedBoardStorageKey(baseKey), JSON.stringify(value));
+}
+
 function getLocalBoardPosts() {
   return safeJsonParse(localStorage.getItem(BOARD_POST_STORAGE_KEY), []) || [];
 }
@@ -122,6 +146,9 @@ function saveCreatedPostLocally(apiResult, payload) {
     source: "board-local-cache",
     createdByCurrentUser: true,
     isMine: true,
+    ownerKey: getBoardUserStorageKey(),
+    ownerEmail: userEmail,
+    ownerUserId: userId,
   };
 
   const posts = getLocalBoardPosts().filter(
@@ -131,19 +158,19 @@ function saveCreatedPostLocally(apiResult, payload) {
   posts.unshift(localPost);
   saveLocalBoardPosts(posts);
 
-  const myPosts = safeJsonParse(localStorage.getItem("mypageMyPosts"), []) || [];
+  const myPosts = getScopedBoardList("mypageMyPosts");
   const filteredMyPosts = myPosts.filter(
     (post) => !(String(post.clubId) === clubId && String(getPostId(post)) === postId)
   );
 
   filteredMyPosts.unshift(localPost);
-  localStorage.setItem("mypageMyPosts", JSON.stringify(filteredMyPosts));
-  localStorage.setItem("lastCreatedBoardPost", JSON.stringify(localPost));
+  setScopedBoardList("mypageMyPosts", filteredMyPosts);
+  setScopedBoardItem("lastCreatedBoardPost", localPost);
 
-  const createdIds = safeJsonParse(localStorage.getItem("myCreatedBoardPostIds"), []) || [];
+  const createdIds = getScopedBoardList("myCreatedBoardPostIds");
   const nextIds = createdIds.filter((item) => !(String(item.clubId) === clubId && String(item.postId) === postId));
   nextIds.unshift({ clubId, postId, title: localPost.title, createdAt: localPost.createdAt });
-  localStorage.setItem("myCreatedBoardPostIds", JSON.stringify(nextIds));
+  setScopedBoardList("myCreatedBoardPostIds", nextIds);
 
   sessionStorage.setItem("mypagePostsDirty", "true");
   return localPost;
@@ -296,13 +323,14 @@ function renderPosts(posts, pageData = {}) {
             <span class="post-api-category">${getCategoryLabel(post.category)}</span>
             <h3>${escapeHtml(post.title || "제목 없음")}</h3>
             <p>
-              ${escapeHtml(post.authorName || "작성자")}
+              ${escapeHtml(post.authorName || post.writerName || "작성자")}
               · ${escapeHtml(post.createdAt || "-")}
             </p>
           </div>
           <div class="post-api-meta">
             <span>조회수</span>
             <strong>${post.viewCount ?? 0}</strong>
+            <button type="button" class="post-api-delete-btn" data-delete-post-id="${escapeHtml(postId)}">삭제</button>
           </div>
         </article>
       `;
@@ -322,6 +350,15 @@ function bindPostItems() {
       if (!clubId || !postId) return;
 
       await loadPostDetail(clubId, postId);
+    };
+  });
+
+  document.querySelectorAll("[data-delete-post-id]").forEach((button) => {
+    button.onclick = async function (event) {
+      event.stopPropagation();
+      const clubId = boardClubSelect.value;
+      const postId = button.dataset.deletePostId;
+      await deletePost(clubId, postId);
     };
   });
 }
@@ -363,19 +400,23 @@ async function loadPostDetail(clubId, postId) {
 }
 
 function renderPostDetail(post) {
+  const clubId = getPostClubId(post) || boardClubSelect.value;
+  const postId = getPostId(post);
+
   postDetail.innerHTML = `
     <div class="post-api-detail-head">
       <div>
         <span class="post-api-category">${getCategoryLabel(post.category)}</span>
         <h2>${escapeHtml(post.title || "제목 없음")}</h2>
         <p>
-          ${escapeHtml(post.authorName || "작성자")}
+          ${escapeHtml(post.authorName || post.writerName || "작성자")}
           · ${escapeHtml(post.createdAt || "-")}
         </p>
       </div>
       <div class="post-api-meta large">
         <span>조회수</span>
         <strong>${post.viewCount ?? 0}</strong>
+        <button type="button" class="post-api-delete-btn" id="postDetailDeleteBtn">삭제</button>
       </div>
     </div>
 
@@ -402,6 +443,56 @@ function renderPostDetail(post) {
         : ""
     }
   `;
+
+  document.querySelector("#postDetailDeleteBtn")?.addEventListener("click", () => {
+    deletePost(clubId, postId);
+  });
+}
+
+function removePostFromLocalCaches(clubId, postId) {
+  const keys = [BOARD_POST_STORAGE_KEY, `clubBoardPosts_${clubId}`, scopedBoardStorageKey("mypageMyPosts")];
+
+  keys.forEach((key) => {
+    const list = safeJsonParse(localStorage.getItem(key), []) || [];
+    if (!Array.isArray(list)) return;
+
+    const next = list.filter((post) => {
+      const sameClub = String(getPostClubId(post) || post.clubId || "") === String(clubId);
+      const samePost = String(getPostId(post) || post.postId || post.id || "") === String(postId);
+      return !(sameClub && samePost);
+    });
+
+    localStorage.setItem(key, JSON.stringify(next));
+  });
+
+  const createdIds = getScopedBoardList("myCreatedBoardPostIds");
+  const nextIds = createdIds.filter((item) => !(String(item.clubId) === String(clubId) && String(item.postId) === String(postId)));
+  setScopedBoardList("myCreatedBoardPostIds", nextIds);
+  sessionStorage.setItem("mypagePostsDirty", "true");
+}
+
+async function deletePost(clubId, postId) {
+  if (!clubId || !postId) {
+    alert("삭제할 게시글 정보를 찾을 수 없습니다.");
+    return;
+  }
+
+  const ok = confirm("이 게시글을 삭제할까요?");
+  if (!ok) return;
+
+  try {
+    await apiRequest(`/api/clubs/${clubId}/posts/${postId}`, {
+      method: "DELETE",
+    });
+
+    removePostFromLocalCaches(clubId, postId);
+    postDetail.classList.add("hidden");
+    await loadPosts();
+    alert("게시글이 삭제되었습니다.");
+  } catch (error) {
+    console.error(error);
+    alert(error.message || "게시글 삭제에 실패했습니다.");
+  }
 }
 
 async function createPost(event) {

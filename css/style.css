@@ -9897,3 +9897,258 @@ body.protected-page-locked .login-required-overlay {
     align-items: flex-start;
   }
 }
+
+/* 운영진 최근 게시물 버튼 정렬/링크 보정 */
+.operator-write-btn,
+.operator-board-link {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-decoration: none !important;
+  line-height: 1 !important;
+}
+
+.operator-write-btn {
+  color: #ffffff !important;
+}
+
+
+
+/* 운영진 게시판 관리 */
+.operator-board-manage-head {
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.operator-board-manage-head p {
+  margin: 8px 0 0;
+  color: rgba(0, 0, 0, 0.42);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.operator-board-refresh-btn {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.operator-board-manage-box {
+  min-height: 420px;
+}
+
+.operator-board-manage-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: flex-start;
+  margin-bottom: 22px;
+}
+
+.operator-board-manage-title p {
+  margin-bottom: 0;
+}
+
+.operator-board-manage-list {
+  display: grid;
+  gap: 12px;
+}
+
+.operator-board-manage-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 18px;
+  border: 1px solid #d9d9d9;
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+.operator-board-manage-main {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 7px 12px;
+  align-items: center;
+}
+
+.operator-board-manage-main span {
+  min-width: 56px;
+  height: 28px;
+  border: 1px solid #000000;
+  border-radius: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #000000;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.operator-board-manage-main strong {
+  min-width: 0;
+  color: #000000;
+  font-size: 18px;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.operator-board-manage-main p {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: rgba(0, 0, 0, 0.45);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.operator-board-manage-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.operator-board-manage-actions a,
+.operator-board-manage-actions button {
+  min-width: 58px;
+  height: 34px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.operator-board-manage-actions a {
+  border: 1px solid #d9d9d9;
+  background: #ffffff;
+  color: #000000;
+}
+
+.operator-board-manage-actions button {
+  border: 0;
+  background: #ff5b5b;
+  color: #ffffff;
+}
+
+@media (max-width: 900px) {
+  .operator-board-manage-title,
+  .operator-board-manage-item {
+    grid-template-columns: 1fr;
+    display: grid;
+  }
+
+  .operator-board-manage-actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .operator-board-manage-actions a,
+  .operator-board-manage-actions button {
+    flex: 1;
+  }
+}
+
+
+.post-api-delete-btn {
+  min-width: 58px;
+  height: 32px;
+  margin-top: 8px;
+  border: 0;
+  border-radius: 8px;
+  background: #ff5b5b;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.post-api-delete-btn:hover,
+.operator-board-manage-actions button:hover {
+  filter: brightness(0.96);
+}
+
+/* 운영진 지원자 현황/관리 실제 데이터 연결 */
+.text-link-button,
+button.more-link {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+}
+
+.operator-applicant-table tbody tr[data-tab-button] {
+  cursor: pointer;
+}
+
+.operator-applicant-table tbody tr[data-tab-button]:hover {
+  background: #fff8ec;
+}
+
+.operator-application-manage-head {
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.operator-application-manage-head p {
+  margin: 8px 0 0;
+  color: rgba(0, 0, 0, 0.42);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.operator-applications-refresh-btn {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.operator-applications-manage-box {
+  min-height: 520px;
+}
+
+.operator-applications-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.operator-applications-toolbar button {
+  height: 36px;
+  border: 1px solid #d9d9d9;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #111111;
+  padding: 0 16px;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.operator-applications-toolbar button.is-active {
+  border-color: #072c6c;
+  background: #072c6c;
+  color: #ffffff;
+}
+
+.operator-applications-manage-list {
+  display: grid;
+  gap: 14px;
+}
+
+.operator-inline-application-card .application-api-content p {
+  white-space: normal;
+  line-height: 1.6;
+}
+
+@media (max-width: 900px) {
+  .operator-application-manage-head {
+    display: grid;
+  }
+}

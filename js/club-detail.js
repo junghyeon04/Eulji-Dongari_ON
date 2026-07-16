@@ -680,6 +680,38 @@ function safeBoardJsonParse(value, fallback = null) {
   }
 }
 
+function getBoardUserStorageKey() {
+  if (typeof getCurrentUserStorageKey === "function") return getCurrentUserStorageKey(getCurrentUser() || {});
+  const user = getCurrentUser() || {};
+  const raw = user.email || user.userId || user.userid || user.id || localStorage.getItem("lastLoginEmail") || "anonymous";
+  return String(raw).trim().toLowerCase().replace(/[^a-z0-9가-힣@._-]/gi, "_") || "anonymous";
+}
+
+function scopedBoardStorageKey(baseKey) {
+  if (typeof getUserScopedStorageKey === "function") return getUserScopedStorageKey(baseKey, getCurrentUser() || {});
+  return `${baseKey}_${getBoardUserStorageKey()}`;
+}
+
+function getScopedBoardList(baseKey) {
+  return safeBoardJsonParse(localStorage.getItem(scopedBoardStorageKey(baseKey)), []) || [];
+}
+
+function setScopedBoardList(baseKey, value) {
+  localStorage.setItem(scopedBoardStorageKey(baseKey), JSON.stringify(value || []));
+}
+
+function getScopedBoardItem(baseKey, fallback = null) {
+  return safeBoardJsonParse(localStorage.getItem(scopedBoardStorageKey(baseKey)), fallback);
+}
+
+function setScopedBoardItem(baseKey, value) {
+  localStorage.setItem(scopedBoardStorageKey(baseKey), JSON.stringify(value));
+}
+
+function removeScopedBoardItem(baseKey) {
+  localStorage.removeItem(scopedBoardStorageKey(baseKey));
+}
+
 function getGlobalBoardPosts() {
   return safeBoardJsonParse(localStorage.getItem("clubBoardPosts"), []) || [];
 }
@@ -730,6 +762,9 @@ function rememberBoardPostForMypage(post) {
     source: post.source || "club-detail-board-cache",
     createdByCurrentUser: true,
     isMine: true,
+    ownerKey: getBoardUserStorageKey(),
+    ownerEmail: String(currentUser.email || "").toLowerCase(),
+    ownerUserId: String(currentUser.userId || currentUser.userid || currentUser.id || ""),
   };
 
   const globalPosts = getGlobalBoardPosts().filter(
@@ -738,20 +773,20 @@ function rememberBoardPostForMypage(post) {
   globalPosts.unshift(record);
   saveGlobalBoardPosts(globalPosts);
 
-  const myPosts = safeBoardJsonParse(localStorage.getItem("mypageMyPosts"), []) || [];
+  const myPosts = getScopedBoardList("mypageMyPosts");
   const filteredMyPosts = myPosts.filter(
     (item) => !(String(item.clubId) === clubId && String(getBoardPostId(item)) === postId)
   );
   filteredMyPosts.unshift(record);
-  localStorage.setItem("mypageMyPosts", JSON.stringify(filteredMyPosts));
-  localStorage.setItem("lastCreatedBoardPost", JSON.stringify(record));
+  setScopedBoardList("mypageMyPosts", filteredMyPosts);
+  setScopedBoardItem("lastCreatedBoardPost", record);
 
-  const createdIds = safeBoardJsonParse(localStorage.getItem("myCreatedBoardPostIds"), []) || [];
+  const createdIds = getScopedBoardList("myCreatedBoardPostIds");
   const nextIds = createdIds.filter(
     (item) => !(String(item.clubId) === clubId && String(item.postId) === postId)
   );
   nextIds.unshift({ clubId, postId, title: record.title, createdAt: record.createdAt });
-  localStorage.setItem("myCreatedBoardPostIds", JSON.stringify(nextIds));
+  setScopedBoardList("myCreatedBoardPostIds", nextIds);
   sessionStorage.setItem("mypagePostsDirty", "true");
 
   return record;
@@ -790,18 +825,19 @@ function removePostFromAllLocalCaches(post) {
   removePostFromStorageList(`clubBoardPosts_${clubId}`, clubId, postId);
   removePostFromStorageList("clubBoardPosts", clubId, postId);
   removePostFromStorageList("mypageMyPosts", clubId, postId);
+  removePostFromStorageList(scopedBoardStorageKey("mypageMyPosts"), clubId, postId);
 
-  const lastPost = safeBoardJsonParse(localStorage.getItem("lastCreatedBoardPost"), null);
+  const lastPost = getScopedBoardItem("lastCreatedBoardPost", null);
   if (lastPost && String(lastPost.clubId || "") === clubId && String(getBoardPostId(lastPost)) === postId) {
-    localStorage.removeItem("lastCreatedBoardPost");
+    removeScopedBoardItem("lastCreatedBoardPost");
   }
 
-  const createdIds = safeBoardJsonParse(localStorage.getItem("myCreatedBoardPostIds"), []);
+  const createdIds = getScopedBoardList("myCreatedBoardPostIds");
   if (Array.isArray(createdIds)) {
     const nextIds = createdIds.filter((item) => {
       return !(String(item.clubId || "") === clubId && String(item.postId || "") === postId);
     });
-    localStorage.setItem("myCreatedBoardPostIds", JSON.stringify(nextIds));
+    setScopedBoardList("myCreatedBoardPostIds", nextIds);
   }
 
   sessionStorage.setItem("mypagePostsDirty", "true");
@@ -971,6 +1007,9 @@ function createBoardPost({ category, title, author, content, apiPost = {} }) {
     source: apiPost.source || "club-detail-board-cache",
     createdByCurrentUser: true,
     isMine: true,
+    ownerKey: getBoardUserStorageKey(),
+    ownerEmail: String(currentUser.email || "").toLowerCase(),
+    ownerUserId: String(currentUser.userId || currentUser.userid || currentUser.id || ""),
   };
 
   const filteredPosts = posts.filter((post) => String(getBoardPostId(post)) !== postId);
@@ -1271,14 +1310,20 @@ function activateBoardTabFromLink() {
 async function openInitialBoardPostFromUrl() {
   const requestedTab = queryParams.get("tab");
   const requestedPostId = queryParams.get("postId");
+  const requestedMode = queryParams.get("mode") || queryParams.get("action");
 
-  if (requestedTab !== "board" && !requestedPostId) {
+  if (requestedTab !== "board" && !requestedPostId && requestedMode !== "write") {
     return false;
   }
 
   activateBoardTabFromLink();
   await loadClubBoardPostsFromApi();
   renderBoardPosts();
+
+  if (requestedMode === "write") {
+    showWriteForm();
+    return true;
+  }
 
   if (requestedPostId) {
     const targetPost = getBoardPosts().find((post) => {
