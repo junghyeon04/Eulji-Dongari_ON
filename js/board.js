@@ -12,9 +12,132 @@ const postDetail = document.getElementById("postDetail");
 
 const urlParams = new URLSearchParams(location.search);
 const initialClubId = urlParams.get("clubId");
+const initialPostId = urlParams.get("postId");
+const BOARD_POST_STORAGE_KEY = "clubBoardPosts";
 
 function getToken() {
   return localStorage.getItem("authToken") || sessionStorage.getItem("authToken");
+}
+
+function safeJsonParse(value, fallback = null) {
+  try {
+    return value ? JSON.parse(value) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function getStoredUser() {
+  return (
+    safeJsonParse(sessionStorage.getItem("currentUser")) ||
+    safeJsonParse(localStorage.getItem("currentUser")) ||
+    safeJsonParse(localStorage.getItem("registeredUser")) ||
+    {}
+  );
+}
+
+function getLocalBoardPosts() {
+  return safeJsonParse(localStorage.getItem(BOARD_POST_STORAGE_KEY), []) || [];
+}
+
+function saveLocalBoardPosts(posts) {
+  localStorage.setItem(BOARD_POST_STORAGE_KEY, JSON.stringify(posts));
+}
+
+function getPostId(post) {
+  return String(post?.postId ?? post?.id ?? "");
+}
+
+function getPostClubId(post) {
+  return String(post?.clubId ?? post?.club?.clubId ?? post?.club?.id ?? post?.__clubId ?? "");
+}
+
+function getSelectedClubName() {
+  const option = boardClubSelect.options[boardClubSelect.selectedIndex];
+  return (option?.textContent || "동아리").replace(/\s*\((중앙|일반)\)\s*$/, "").trim();
+}
+
+function getLocalPostsForClub(clubId) {
+  return getLocalBoardPosts().filter((post) => String(post.clubId) === String(clubId));
+}
+
+function mergePostLists(apiPosts = [], localPosts = []) {
+  const map = new Map();
+
+  localPosts.forEach((post, index) => {
+    const key = getPostId(post) || `local-${index}`;
+    map.set(key, post);
+  });
+
+  apiPosts.forEach((post, index) => {
+    const key = getPostId(post) || `api-${index}`;
+    const previous = map.get(key) || {};
+    map.set(key, {
+      ...previous,
+      ...post,
+      clubId: getPostClubId(post) || previous.clubId || boardClubSelect.value,
+      clubName: post.clubName || previous.clubName || getSelectedClubName(),
+    });
+  });
+
+  return Array.from(map.values()).sort((a, b) =>
+    String(b.createdAt || b.updatedAt || "").localeCompare(String(a.createdAt || a.updatedAt || ""))
+  );
+}
+
+function saveCreatedPostLocally(apiResult, payload) {
+  const data = getResultData(apiResult);
+  const user = getStoredUser();
+  const now = new Date().toISOString();
+  const clubId = String(boardClubSelect.value);
+  const postId = String(data.postId || data.id || `local-${Date.now()}`);
+
+  const localPost = {
+    localStorageId: `${clubId}-${postId}`,
+    postId,
+    id: postId,
+    clubId,
+    clubName: getSelectedClubName(),
+    category: payload.category,
+    status: payload.status,
+    title: payload.title,
+    content: payload.content,
+    attachmentUrls: payload.attachmentUrls || [],
+    authorId: user.userId || user.userid || user.id || "",
+    userId: user.userId || user.userid || user.id || "",
+    userid: user.userid || user.userId || user.id || "",
+    authorEmail: user.email || "",
+    email: user.email || "",
+    authorName: user.name || "나",
+    viewCount: data.viewCount ?? 0,
+    createdAt: data.createdAt || now,
+    updatedAt: data.updatedAt || now,
+    source: "board-local-cache",
+  };
+
+  const posts = getLocalBoardPosts().filter(
+    (post) => !(String(post.clubId) === clubId && String(getPostId(post)) === postId)
+  );
+
+  posts.unshift(localPost);
+  saveLocalBoardPosts(posts);
+
+  // 마이페이지에서 바로 읽을 수 있도록 내 게시물 전용 캐시에도 같이 저장한다.
+  const myPosts = safeJsonParse(localStorage.getItem("mypageMyPosts"), []) || [];
+  const filteredMyPosts = myPosts.filter(
+    (post) => !(String(post.clubId) === clubId && String(getPostId(post)) === postId)
+  );
+
+  filteredMyPosts.unshift(localPost);
+  localStorage.setItem("mypageMyPosts", JSON.stringify(filteredMyPosts));
+  localStorage.setItem("lastCreatedBoardPost", JSON.stringify(localPost));
+  sessionStorage.setItem("mypagePostsDirty", "true");
+}
+
+function findLocalPost(clubId, postId) {
+  return getLocalBoardPosts().find(
+    (post) => String(post.clubId) === String(clubId) && String(getPostId(post)) === String(postId)
+  );
 }
 
 function requireLogin() {
@@ -49,7 +172,7 @@ function getCategoryLabel(category) {
     QUESTION: "질문",
   };
 
-  return labels[category] || category || "게시글";
+  return labels[category] || category || "게시물";
 }
 
 async function loadClubsForBoard() {
@@ -77,6 +200,9 @@ async function loadClubsForBoard() {
       boardClubSelect.value = initialClubId;
       if (boardClubSelect.value) {
         await loadPosts();
+        if (initialPostId) {
+          await loadPostDetail(initialClubId, initialPostId);
+        }
       }
     }
   } catch (error) {
@@ -112,20 +238,24 @@ async function loadPosts() {
   }
 
   postDetail.classList.add("hidden");
-  postList.innerHTML = `<div class="operator-api-empty">게시글을 불러오는 중입니다...</div>`;
+  postList.innerHTML = `<div class="operator-api-empty">게시물을 불러오는 중입니다...</div>`;
 
   try {
     const query = buildPostQuery();
     const result = await apiRequest(`/api/clubs/${clubId}/posts?${query}`);
     const data = getResultData(result);
-    const posts = Array.isArray(data.content) ? data.content : [];
+    const apiPosts = Array.isArray(data.content) ? data.content : Array.isArray(data) ? data : [];
+    const posts = mergePostLists(apiPosts, getLocalPostsForClub(clubId));
 
-    renderPosts(posts, data);
+    renderPosts(posts, {
+      ...data,
+      totalElements: Math.max(Number(data.totalElements || 0), posts.length),
+    });
   } catch (error) {
     console.error(error);
     postList.innerHTML = `
       <div class="operator-api-empty error">
-        게시글 목록을 불러오지 못했습니다.
+        게시물 목록을 불러오지 못했습니다.
       </div>
     `;
   }
@@ -133,18 +263,20 @@ async function loadPosts() {
 
 function renderPosts(posts, pageData = {}) {
   if (!posts.length) {
-    boardSummary.textContent = "조회된 게시글이 없습니다.";
-    postList.innerHTML = `<div class="operator-api-empty">조회된 게시글이 없습니다.</div>`;
+    boardSummary.textContent = "조회된 게시물이 없습니다.";
+    postList.innerHTML = `<div class="operator-api-empty">조회된 게시물이 없습니다.</div>`;
     return;
   }
 
   const total = pageData.totalElements ?? posts.length;
-  boardSummary.textContent = `총 ${total}개의 게시글이 조회되었습니다.`;
+  boardSummary.textContent = `총 ${total}개의 게시물이 조회되었습니다.`;
 
   postList.innerHTML = posts
     .map(
-      (post) => `
-        <article class="post-api-item" data-post-id="${post.postId}">
+      (post) => {
+        const postId = getPostId(post);
+        return `
+        <article class="post-api-item" data-post-id="${escapeHtml(postId)}">
           <div class="post-api-main">
             <span class="post-api-category">${getCategoryLabel(post.category)}</span>
             <h3>${escapeHtml(post.title || "제목 없음")}</h3>
@@ -158,7 +290,8 @@ function renderPosts(posts, pageData = {}) {
             <strong>${post.viewCount ?? 0}</strong>
           </div>
         </article>
-      `
+      `;
+      }
     )
     .join("");
 
@@ -180,19 +313,35 @@ function bindPostItems() {
 
 async function loadPostDetail(clubId, postId) {
   postDetail.classList.remove("hidden");
-  postDetail.innerHTML = `<div class="operator-api-empty">게시글 상세를 불러오는 중입니다...</div>`;
+  postDetail.innerHTML = `<div class="operator-api-empty">게시물 상세를 불러오는 중입니다...</div>`;
 
   try {
     const result = await apiRequest(`/api/clubs/${clubId}/posts/${postId}`);
-    const post = getResultData(result);
+    const apiPost = getResultData(result);
+    const localPost = findLocalPost(clubId, postId) || {};
+    const post = {
+      ...localPost,
+      ...apiPost,
+      clubId: getPostClubId(apiPost) || localPost.clubId || clubId,
+      clubName: apiPost.clubName || localPost.clubName || getSelectedClubName(),
+    };
 
     renderPostDetail(post);
-    await loadPosts();
   } catch (error) {
     console.error(error);
+    const localPost = findLocalPost(clubId, postId);
+
+    if (localPost) {
+      renderPostDetail({
+        ...localPost,
+        viewCount: Number(localPost.viewCount || 0),
+      });
+      return;
+    }
+
     postDetail.innerHTML = `
       <div class="operator-api-empty error">
-        게시글 상세를 불러오지 못했습니다.
+        게시물 상세를 불러오지 못했습니다.
       </div>
     `;
   }
@@ -264,24 +413,28 @@ async function createPost(event) {
   submitButton.disabled = true;
 
   try {
-    await apiRequest(`/api/clubs/${clubId}/posts`, {
+    const payload = {
+      category: postCategory.value,
+      status: "PUBLISHED",
+      title,
+      content,
+      attachmentUrls: [],
+    };
+
+    const result = await apiRequest(`/api/clubs/${clubId}/posts`, {
       method: "POST",
-      body: {
-        category: postCategory.value,
-        status: "PUBLISHED",
-        title,
-        content,
-        attachmentUrls: [],
-      },
+      body: payload,
     });
 
-    alert("게시글이 등록되었습니다.");
+    saveCreatedPostLocally(result, payload);
+
+    alert("게시물이 등록되었습니다.");
     postForm.reset();
     postCategory.value = "NOTICE";
     await loadPosts();
   } catch (error) {
     console.error(error);
-    alert(error.message || "게시글 등록에 실패했습니다.");
+    alert(error.message || "게시물 등록에 실패했습니다.");
   } finally {
     submitButton.disabled = false;
   }

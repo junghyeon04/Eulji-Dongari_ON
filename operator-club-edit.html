@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>동아리 정보 수정 | 동아리 ON</title>
+  <link rel="stylesheet" href="./css/style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <a href="./index.html" class="logo">동아리 ON</a>
+    <nav>
+      <a href="./index.html">홈</a>
+      <a href="./club-list.html">동아리 탐색</a>
+      <a href="./apply.html">동아리 지원</a>
+      <a href="./mypage.html">마이페이지</a>
+    </nav>
+  </header>
+
+  <main class="operator-page">
+    <section class="operator-hero">
+      <p class="eyebrow">운영진 관리</p>
+      <h1>동아리 정보 수정</h1>
+      <p>운영 중인 동아리의 소개, 모집 상태, 모집 기간, 활동 정보, 연락처를 수정합니다.</p>
+    </section>
+
+    <section class="operator-panel">
+      <div class="operator-toolbar">
+        <label class="operator-field">
+          <span>동아리 선택</span>
+          <select id="clubSelect">
+            <option value="">동아리를 선택하세요</option>
+          </select>
+        </label>
+        <button type="button" id="loadClubBtn" class="operator-btn primary">정보 불러오기</button>
+      </div>
+
+      <div id="clubEditSummary" class="operator-summary">동아리를 선택하면 수정 폼이 표시됩니다.</div>
+
+      <form id="clubEditForm" class="operator-edit-form hidden">
+        <div class="operator-form-grid">
+          <label>
+            <span>동아리명</span>
+            <input type="text" id="clubName" readonly />
+          </label>
+
+          <label>
+            <span>모집 상태</span>
+            <select id="clubStatus">
+              <option value="OPEN">모집 중</option>
+              <option value="CLOSED">모집마감</option>
+              <option value="ALWAYS">상시 모집</option>
+            </select>
+          </label>
+
+          <label>
+            <span>모집 기간</span>
+            <input type="text" id="recruitPeriod" placeholder="예: 2026.03.01 ~ 2026.03.15" />
+          </label>
+
+          <label>
+            <span>연락처 / SNS</span>
+            <input type="text" id="contactUrl" placeholder="인스타그램, 카카오톡 오픈채팅, 이메일 등" />
+          </label>
+        </div>
+
+        <label>
+          <span>짧은 소개</span>
+          <textarea id="shortDescription" rows="3" placeholder="동아리 카드에 표시될 짧은 소개"></textarea>
+        </label>
+
+        <label>
+          <span>상세 소개</span>
+          <textarea id="fullDescription" rows="6" placeholder="동아리 상세 페이지에 표시될 소개"></textarea>
+        </label>
+
+        <label>
+          <span>모집 조건</span>
+          <textarea id="recruitCondition" rows="4" placeholder="지원 조건, 모집 대상 등"></textarea>
+        </label>
+
+        <label>
+          <span>활동 정보</span>
+          <textarea id="activityInfo" rows="4" placeholder="정기 모임, 주요 활동, 회비 등"></textarea>
+        </label>
+
+        <div class="operator-form-actions">
+          <button type="submit" class="operator-btn primary">수정 저장</button>
+          <a href="./mypage.html" class="operator-btn secondary-link">마이페이지로 돌아가기</a>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <script src="./js/auth.js"></script>
+  <script src="./js/api.js"></script>
+  <script src="./js/operator-club-edit.js"></script>
+</body>
+</html>

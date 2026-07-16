@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>활동 기록 관리 | 동아리 ON</title>
+  <link rel="stylesheet" href="./css/style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <a href="./index.html" class="logo">동아리 ON</a>
+    <nav>
+      <a href="./index.html">홈</a>
+      <a href="./club-list.html">동아리 탐색</a>
+      <a href="./apply.html">동아리 지원</a>
+      <a href="./mypage.html">마이페이지</a>
+    </nav>
+  </header>
+
+  <main class="operator-page">
+    <section class="operator-hero">
+      <p class="eyebrow">활동 기록</p>
+      <h1>활동 기록 목록 / 상세 / 작성 / 수정 / 삭제</h1>
+      <p>동아리 활동 사진과 내용을 기록하고 관리합니다. 이미지 URL은 줄바꿈으로 여러 개 입력할 수 있습니다.</p>
+    </section>
+
+    <section class="operator-panel">
+      <div class="operator-toolbar">
+        <label class="operator-field">
+          <span>동아리 선택</span>
+          <select id="recordClubSelect">
+            <option value="">동아리를 선택하세요</option>
+          </select>
+        </label>
+        <button type="button" id="loadRecordsBtn" class="operator-btn primary">목록 조회</button>
+      </div>
+
+      <div class="record-layout">
+        <section class="record-list-area">
+          <div id="recordSummary" class="operator-summary">동아리를 선택하면 활동 기록 목록이 표시됩니다.</div>
+          <div id="recordList" class="record-list"></div>
+        </section>
+
+        <section class="record-form-area">
+          <h2 id="recordFormTitle">활동 기록 작성</h2>
+          <form id="recordForm" class="post-form">
+            <input type="hidden" id="recordId" />
+
+            <label>
+              <span>제목</span>
+              <input type="text" id="recordTitle" placeholder="활동 기록 제목" required />
+            </label>
+
+            <label>
+              <span>내용</span>
+              <textarea id="recordContent" rows="8" placeholder="활동 내용을 입력하세요." required></textarea>
+            </label>
+
+            <label>
+              <span>이미지 URL</span>
+              <textarea id="recordImageUrls" rows="4" placeholder="https://example.com/image1.jpg&#10;https://example.com/image2.jpg"></textarea>
+            </label>
+
+            <div class="operator-form-actions compact">
+              <button type="submit" class="operator-btn primary full">저장</button>
+              <button type="button" id="resetRecordFormBtn" class="operator-btn">새 글 작성</button>
+            </div>
+          </form>
+        </section>
+      </div>
+
+      <section id="recordDetail" class="post-detail hidden"></section>
+    </section>
+  </main>
+
+  <script src="./js/auth.js"></script>
+  <script src="./js/api.js"></script>
+  <script src="./js/activity-records.js"></script>
+</body>
+</html>

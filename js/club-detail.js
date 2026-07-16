@@ -828,34 +828,48 @@ function updateDetailScrapButton() {
 }
 
 async function toggleScrap() {
-  if (isLoggedIn() && typeof apiRequest === "function") {
-    try {
-      await apiRequest(`/api/clubs/${club.id}/bookmarks`, {
-        method: "POST",
-      });
-    } catch (error) {
-      console.warn("스크랩 API 처리 실패, 로컬 스크랩으로 처리:", error);
-    }
+  if (!isLoggedIn()) {
+    if (requireLogin("스크랩은 로그인 후 이용할 수 있습니다.<br />로그인 페이지로 이동하시겠습니까?")) return;
+    return;
   }
 
-  let savedClubs = getSavedClubs();
+  const shouldSave = !isSaved(club.id);
 
-  if (isSaved(club.id)) {
-    savedClubs = savedClubs.filter((savedClub) => String(savedClub.id) !== String(club.id));
-  } else {
-    savedClubs.push({
+  try {
+    const bookmarkClub = {
       id: club.id,
+      clubId: club.id,
       name: club.name,
       description: club.description,
       status: club.status,
       image: club.image,
       category: club.category,
       type: club.type,
-    });
-  }
+    };
 
-  saveClubs(savedClubs);
-  updateDetailScrapButton();
+    if (typeof setBookmarkOnServer === "function") {
+      await setBookmarkOnServer(bookmarkClub, shouldSave);
+    } else {
+      await apiRequest(`/api/clubs/${club.id}/bookmarks`, {
+        method: shouldSave ? "POST" : "DELETE",
+      });
+
+      let savedClubs = getSavedClubs();
+      if (shouldSave) {
+        savedClubs.push(bookmarkClub);
+      } else {
+        savedClubs = savedClubs.filter(
+          (savedClub) => String(savedClub.id) !== String(club.id)
+        );
+      }
+      saveClubs(savedClubs);
+    }
+
+    updateDetailScrapButton();
+  } catch (error) {
+    console.error(error);
+    alert(error.message || "스크랩 처리에 실패했습니다.");
+  }
 }
 
 function setActiveDetailTab(tabName) {
@@ -1143,6 +1157,14 @@ detailApplyBtnGuard?.addEventListener("click", (event) => {
 
 async function initClubDetailPage() {
   await loadClubDetailFromApi();
+
+  try {
+    if (typeof syncBookmarksFromServer === "function") {
+      await syncBookmarksFromServer();
+    }
+  } catch (error) {
+    console.warn("상세 스크랩 동기화 실패:", error);
+  }
 
   renderClubDetail();
   updateDetailScrapButton();

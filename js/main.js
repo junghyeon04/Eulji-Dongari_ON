@@ -211,24 +211,28 @@ function bindBookmarkButtons() {
         return;
       }
 
+      const shouldSave = !isSaved(club.id);
       button.disabled = true;
 
       try {
-        await apiRequest(`/api/clubs/${club.id}/bookmarks`, {
-          method: "POST",
-        });
-
-        let savedClubs = getSavedClubs();
-
-        if (isSaved(club.id)) {
-          savedClubs = savedClubs.filter(
-            (savedClub) => String(savedClub.id) !== String(club.id)
-          );
+        if (typeof setBookmarkOnServer === "function") {
+          await setBookmarkOnServer(club, shouldSave);
         } else {
-          savedClubs.push(club);
+          await apiRequest(`/api/clubs/${club.id}/bookmarks`, {
+            method: shouldSave ? "POST" : "DELETE",
+          });
+
+          let savedClubs = getSavedClubs();
+          if (shouldSave) {
+            savedClubs.push(club);
+          } else {
+            savedClubs = savedClubs.filter(
+              (savedClub) => String(savedClub.id) !== String(club.id)
+            );
+          }
+          saveClubs(savedClubs);
         }
 
-        saveClubs(savedClubs);
         updateBookmarkButtons();
       } catch (error) {
         console.error(error);
@@ -348,6 +352,14 @@ function initHomeClubCardLinks() {
 
 async function initHomePage() {
   await loadHomeClubsFromApi();
+
+  try {
+    if (typeof syncBookmarksFromServer === "function") {
+      await syncBookmarksFromServer();
+    }
+  } catch (error) {
+    console.warn("홈 스크랩 동기화 실패:", error);
+  }
 
   bindBookmarkButtons();
   updateBookmarkButtons();

@@ -9404,3 +9404,461 @@ body.protected-page-locked .login-required-overlay {
     flex: 1;
   }
 }
+
+/* =========================================================
+   1/3/5 추가 기능: 동아리 정보 수정, 활동 기록, 알림
+========================================================= */
+
+.hidden {
+  display: none !important;
+}
+
+.operator-edit-form,
+.record-form-area .post-form {
+  display: grid;
+  gap: 16px;
+}
+
+.operator-edit-form label,
+.record-form-area label {
+  display: grid;
+  gap: 8px;
+}
+
+.operator-edit-form label span,
+.record-form-area label span {
+  font-size: 13px;
+  font-weight: 800;
+  color: #072c6c;
+}
+
+.operator-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.operator-edit-form input,
+.operator-edit-form select,
+.operator-edit-form textarea {
+  width: 100%;
+  border: 1px solid #d8d8d8;
+  border-radius: 12px;
+  padding: 13px 14px;
+  font: inherit;
+  outline: none;
+  background: #fff;
+  box-sizing: border-box;
+}
+
+.operator-edit-form input[readonly] {
+  background: #f7f8fb;
+  color: #777;
+}
+
+.operator-edit-form input:focus,
+.operator-edit-form select:focus,
+.operator-edit-form textarea:focus {
+  border-color: #f4b400;
+  box-shadow: 0 0 0 3px rgba(244, 180, 0, 0.14);
+}
+
+.operator-form-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.operator-form-actions.compact {
+  justify-content: stretch;
+}
+
+.operator-btn.secondary-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  background: #f0f0f0;
+  color: #222;
+}
+
+.record-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.record-form-area {
+  border: 1px solid #e8e8e8;
+  border-radius: 18px;
+  padding: 20px;
+  background: #fbfbfb;
+}
+
+.record-form-area h2 {
+  margin: 0 0 16px;
+  font-size: 22px;
+  color: #072c6c;
+}
+
+.record-list {
+  display: grid;
+  gap: 12px;
+}
+
+.record-item {
+  display: grid;
+  grid-template-columns: 86px minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+  padding: 14px;
+  border: 1px solid #e8e8e8;
+  border-radius: 16px;
+  background: #fff;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.record-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(7, 44, 108, 0.08);
+}
+
+.record-item img,
+.record-thumb-placeholder {
+  width: 86px;
+  height: 70px;
+  border-radius: 12px;
+  object-fit: cover;
+  background: #f7f8fb;
+}
+
+.record-thumb-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #072c6c;
+  font-weight: 900;
+}
+
+.record-item h3 {
+  margin: 0 0 6px;
+  color: #072c6c;
+  font-size: 18px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.record-item p {
+  margin: 0;
+  color: #777;
+  font-size: 13px;
+}
+
+.record-image-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.record-image-grid img {
+  width: 100%;
+  height: 160px;
+  object-fit: cover;
+  border-radius: 14px;
+  border: 1px solid #eee;
+}
+
+.notification-toolbar {
+  justify-content: flex-start;
+}
+
+.notification-list-page {
+  display: grid;
+  gap: 12px;
+}
+
+.notification-page-item {
+  display: grid;
+  grid-template-columns: 78px minmax(0, 1fr);
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid #e8e8e8;
+  border-radius: 16px;
+  background: #fff;
+}
+
+.notification-page-item.is-unread {
+  border-color: rgba(244, 180, 0, 0.45);
+  background: #fffaf0;
+}
+
+.notification-page-icon {
+  width: 66px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #072c6c;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.notification-page-item.is-read .notification-page-icon {
+  background: #d9dde8;
+  color: #5f6680;
+}
+
+.notification-page-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.notification-page-head strong {
+  color: #072c6c;
+  font-size: 18px;
+}
+
+.notification-page-head em {
+  color: #888;
+  font-size: 12px;
+  font-style: normal;
+  white-space: nowrap;
+}
+
+.notification-page-main p {
+  margin: 8px 0 12px;
+  color: #444;
+  line-height: 1.5;
+}
+
+.notification-page-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.notification-page-actions a,
+.notification-page-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: none;
+  background: #f0f2f6;
+  color: #072c6c;
+  font-weight: 800;
+  font-size: 13px;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.notification-page-actions button {
+  background: #f8d489;
+}
+
+@media (max-width: 900px) {
+  .operator-form-grid,
+  .record-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .operator-form-actions {
+    justify-content: stretch;
+  }
+
+  .operator-form-actions .operator-btn,
+  .operator-form-actions a {
+    width: 100%;
+  }
+
+  .notification-page-item {
+    grid-template-columns: 1fr;
+  }
+
+  .notification-page-head {
+    flex-direction: column;
+  }
+}
+
+/* =========================================================
+   MyPage API panels: 내 게시글 / 지원 내역
+========================================================= */
+.mypage-api-section {
+  display: grid;
+  gap: 18px;
+}
+
+.mypage-api-summary {
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: #f7f8fb;
+  color: #444;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.mypage-api-list {
+  display: grid;
+  gap: 16px;
+}
+
+.mypage-api-empty {
+  padding: 42px 20px;
+  border-radius: 16px;
+  background: #f8f8f8;
+  color: #777;
+  text-align: center;
+  font-weight: 800;
+  line-height: 1.6;
+}
+
+.mypage-api-card {
+  border: 1px solid #e8e8e8;
+  border-radius: 18px;
+  padding: 20px;
+  background: #fff;
+  box-shadow: 0 10px 26px rgba(7, 44, 108, 0.05);
+}
+
+.mypage-api-card-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 14px;
+}
+
+.mypage-api-card h3 {
+  margin: 4px 0 6px;
+  color: #072c6c;
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.mypage-api-card p {
+  margin: 0;
+  color: #666;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.mypage-api-content {
+  padding: 14px;
+  border-radius: 14px;
+  background: #f7f8fb;
+  margin: 14px 0 16px;
+}
+
+.mypage-api-content strong {
+  display: block;
+  margin-bottom: 8px;
+  color: #072c6c;
+  font-size: 14px;
+}
+
+.mypage-api-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.mypage-api-link,
+.mypage-api-button {
+  min-width: 98px;
+  height: 38px;
+  border: 0;
+  border-radius: 10px;
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #072c6c;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 900;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.mypage-api-button.danger {
+  background: #6c7aa4;
+}
+
+.mypage-api-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.mypage-post-category {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: #f8d489;
+  color: #072c6c;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.mypage-post-view {
+  min-width: 72px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  color: #777;
+  font-size: 12px;
+}
+
+.mypage-post-view strong {
+  color: #072c6c;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.status-cancelled {
+  background: #aaa;
+}
+
+.operator-post-list article[role="link"] {
+  cursor: pointer;
+}
+
+.operator-post-list article[role="link"]:hover strong {
+  color: #072c6c;
+  text-decoration: underline;
+}
+
+@media (max-width: 700px) {
+  .mypage-api-card-head {
+    flex-direction: column;
+  }
+
+  .mypage-api-actions {
+    justify-content: stretch;
+  }
+
+  .mypage-api-link,
+  .mypage-api-button {
+    width: 100%;
+  }
+
+  .mypage-post-view {
+    align-items: flex-start;
+  }
+}
