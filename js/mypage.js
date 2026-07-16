@@ -26,6 +26,8 @@ const mypageState = {
   posts: [],
   postsTotal: 0,
   operatorRecentPosts: [],
+  operatorApplicants: [],
+  operatorApplicantStatusFilter: "",
   activity: [
     {
       key: "posts",
@@ -78,63 +80,165 @@ function safeJsonParse(value) {
   }
 }
 
+
+function normalizeMyPageRoleValue(value) {
+  if (typeof normalizeRoleValue === "function") return normalizeRoleValue(value);
+  const raw = Array.isArray(value) ? value.join(",") : String(value || "");
+  const role = raw.trim().toUpperCase();
+  if (!role) return "";
+  if (role.includes("ROLE_CLUB_ADMIN") || role === "CLUB_ADMIN" || role.includes("CLUB_ADMIN")) return "ROLE_CLUB_ADMIN";
+  if (role.includes("OPERATOR") || role.includes("MANAGER") || role.includes("OWNER")) return "ROLE_CLUB_ADMIN";
+  if (role.includes("STUDENT") || role.includes("MEMBER")) return "ROLE_STUDENT";
+  return role.startsWith("ROLE_") ? role : `ROLE_${role}`;
+}
+
 function getStoredUser() {
-  return (
+  const activeUser =
     safeJsonParse(sessionStorage.getItem("currentUser")) ||
-    safeJsonParse(localStorage.getItem("currentUser")) ||
-    safeJsonParse(localStorage.getItem("registeredUser")) ||
-    null
-  );
+    safeJsonParse(localStorage.getItem("currentUser"));
+
+  if (activeUser) return activeUser;
+
+  // 로그인 중인데 currentUser가 없는 경우에는 이전 계정의 registeredUser를 사용하지 않습니다.
+  if (typeof isLoggedIn === "function" && isLoggedIn()) {
+    return {
+      email: localStorage.getItem("lastLoginEmail") || "",
+      role: localStorage.getItem("userRole") || sessionStorage.getItem("userRole") || "ROLE_STUDENT",
+    };
+  }
+
+  return safeJsonParse(localStorage.getItem("registeredUser")) || null;
+}
+
+function getMyPageUserStorageKey() {
+  if (typeof getCurrentUserStorageKey === "function") return getCurrentUserStorageKey(getStoredUser() || {});
+  const user = getStoredUser() || {};
+  const raw = user.email || user.userId || user.userid || user.id || localStorage.getItem("lastLoginEmail") || "anonymous";
+  return String(raw).trim().toLowerCase().replace(/[^a-z0-9가-힣@._-]/gi, "_") || "anonymous";
+}
+
+function scopedMyPageStorageKey(baseKey) {
+  if (typeof getUserScopedStorageKey === "function") return getUserScopedStorageKey(baseKey, getStoredUser() || {});
+  return `${baseKey}_${getMyPageUserStorageKey()}`;
+}
+
+function getScopedMyPageList(baseKey) {
+  return safeJsonParse(localStorage.getItem(scopedMyPageStorageKey(baseKey))) || [];
+}
+
+function getScopedMyPageItem(baseKey, fallback = null) {
+  return safeJsonParse(localStorage.getItem(scopedMyPageStorageKey(baseKey))) || fallback;
+}
+
+function getUserEmailForCompare(user = {}) {
+  return String(user.email || user.loginId || "").trim().toLowerCase();
+}
+
+function mergeOnlySameUser(base = {}, next = {}) {
+  const baseEmail = getUserEmailForCompare(base);
+  const nextEmail = getUserEmailForCompare(next);
+
+  if (baseEmail && nextEmail && baseEmail !== nextEmail) {
+    return { ...next };
+  }
+
+  return { ...base, ...next };
 }
 
 function saveStoredUser(nextUser) {
   const registeredUser = safeJsonParse(localStorage.getItem("registeredUser")) || {};
-  const mergedRegisteredUser = {
-    ...registeredUser,
-    ...nextUser,
-  };
+  let mergedRegisteredUser = mergeOnlySameUser(registeredUser, nextUser);
+
+  if (typeof applyOperatorRoleOverride === "function") {
+    mergedRegisteredUser = applyOperatorRoleOverride(mergedRegisteredUser);
+  }
 
   localStorage.setItem("registeredUser", JSON.stringify(mergedRegisteredUser));
 
   if (localStorage.getItem("currentUser")) {
-    localStorage.setItem("currentUser", JSON.stringify({
-      ...safeJsonParse(localStorage.getItem("currentUser")),
-      ...nextUser,
-    }));
+    const mergedCurrentUser = mergeOnlySameUser(
+      safeJsonParse(localStorage.getItem("currentUser")) || {},
+      nextUser
+    );
+    const fixedUser =
+      typeof applyOperatorRoleOverride === "function"
+        ? applyOperatorRoleOverride(mergedCurrentUser)
+        : mergedCurrentUser;
+
+    localStorage.setItem("currentUser", JSON.stringify(fixedUser));
+    localStorage.setItem("userRole", fixedUser.role || "ROLE_STUDENT");
   }
 
   if (sessionStorage.getItem("currentUser")) {
-    sessionStorage.setItem("currentUser", JSON.stringify({
-      ...safeJsonParse(sessionStorage.getItem("currentUser")),
-      ...nextUser,
-    }));
+    const mergedCurrentUser = mergeOnlySameUser(
+      safeJsonParse(sessionStorage.getItem("currentUser")) || {},
+      nextUser
+    );
+    const fixedUser =
+      typeof applyOperatorRoleOverride === "function"
+        ? applyOperatorRoleOverride(mergedCurrentUser)
+        : mergedCurrentUser;
+
+    sessionStorage.setItem("currentUser", JSON.stringify(fixedUser));
+    sessionStorage.setItem("userRole", fixedUser.role || "ROLE_STUDENT");
   }
 }
 
 function getDisplayUser() {
   const storedUser = getStoredUser();
 
-  return {
+  const merged = {
     ...mypageState.user,
     ...(storedUser || {}),
     joinDate: storedUser?.joinDate || storedUser?.createdAt || storedUser?.createdAtText || "2026.06.01",
   };
+
+  return typeof applyOperatorRoleOverride === "function"
+    ? applyOperatorRoleOverride(merged)
+    : merged;
 }
 
 function isOperatorUser() {
   const user = getDisplayUser();
+  const email = getUserEmailForCompare(user) || String(localStorage.getItem("lastLoginEmail") || "").trim().toLowerCase();
+  const signupRole = typeof getSignupAccountRoleForEmail === "function" ? getSignupAccountRoleForEmail(email) : "";
+  if (signupRole === "ROLE_CLUB_ADMIN") return true;
+  if (signupRole === "ROLE_STUDENT") return false;
+
+  const savedRole = typeof getAccountRoleForEmail === "function" ? getAccountRoleForEmail(email) : "";
+  const role = normalizeMyPageRoleValue(user.role || user.signupRole || user.memberType || user.membertype || savedRole || "");
+  const status = String(user.operatorStatus || user.clubAdminRequestStatus || "").toUpperCase();
 
   return (
-    user.role === "ROLE_CLUB_ADMIN" ||
-    user.signupRole === "ROLE_CLUB_ADMIN_PENDING" ||
-    user.operatorStatus === "PENDING" ||
-    Boolean(user.operatorRequest)
+    role === "ROLE_CLUB_ADMIN" ||
+    savedRole === "ROLE_CLUB_ADMIN" ||
+    user.memberType === "CLUB_ADMIN" ||
+    user.membertype === "CLUB_ADMIN" ||
+    ["APPROVED", "ACCEPTED", "ACTIVE", "COMPLETE", "COMPLETED"].includes(status) ||
+    Boolean(user.operatorRequest || user.clubAdminRequest) ||
+    (Array.isArray(mypageState.operatorClubs) && mypageState.operatorClubs.length > 0)
   );
 }
-
 function getOperatorRequest() {
   const user = getDisplayUser();
   return user.operatorRequest || {};
+}
+
+function getOperatorFallbackClub() {
+  const request = getOperatorRequest();
+
+  if (!request.clubId && !request.clubName) return null;
+
+  return {
+    clubId: String(request.clubId || ""),
+    id: String(request.clubId || ""),
+    name: request.clubName || "운영 동아리",
+    type: request.clubType || "",
+    typeText: request.clubType === "CENTRAL" ? "중앙동아리" : request.clubType === "GENERAL" ? "일반동아리" : "운영 동아리",
+    category: "운영진",
+    myRole: request.clubRole || "ADMIN",
+    image: "",
+  };
 }
 
 function getSavedClubs() {
@@ -261,15 +365,16 @@ function removeDefaultBoardSeedPosts(posts = []) {
 
 function getLocalBoardPosts() {
   const boardPosts = removeDefaultBoardSeedPosts(safeJsonParse(localStorage.getItem(BOARD_POST_STORAGE_KEY), []) || []);
-  const mypagePosts = removeDefaultBoardSeedPosts(safeJsonParse(localStorage.getItem("mypageMyPosts"), []) || []);
-  const lastPost = safeJsonParse(localStorage.getItem("lastCreatedBoardPost"), null);
-  const extraPosts = removeDefaultBoardSeedPosts(safeJsonParse(localStorage.getItem("myCreatedBoardPosts"), []) || []);
+  const scopedMypagePosts = removeDefaultBoardSeedPosts(getScopedMyPageList("mypageMyPosts"));
+  const scopedLastPost = getScopedMyPageItem("lastCreatedBoardPost", null);
+  const scopedExtraPosts = removeDefaultBoardSeedPosts(getScopedMyPageList("myCreatedBoardPosts"));
   const perClubPosts = [];
 
-  // club-detail.html 게시판은 clubBoardPosts_{clubId} 키에 저장되어 있었기 때문에
-  // 모든 동아리별 게시판 캐시도 같이 읽어온다.
+  // 동아리 게시판 캐시는 전체 게시판 표시용이라 계정이 섞일 수 있습니다.
+  // 마이페이지에서는 아래 isMyLocalPost()에서 현재 로그인 계정의 게시물만 걸러서 사용합니다.
   Object.keys(localStorage).forEach((key) => {
     if (!key.startsWith("clubBoardPosts_")) return;
+    if (key.startsWith("clubBoardPosts_") && key.includes("@")) return;
 
     const clubId = key.replace("clubBoardPosts_", "");
     const posts = safeJsonParse(localStorage.getItem(key), []) || [];
@@ -293,9 +398,9 @@ function getLocalBoardPosts() {
   [
     ...boardPosts,
     ...perClubPosts,
-    ...mypagePosts,
-    ...extraPosts,
-    ...(lastPost && !isDefaultBoardSeedPost(lastPost) ? [lastPost] : []),
+    ...scopedMypagePosts,
+    ...scopedExtraPosts,
+    ...(scopedLastPost && !isDefaultBoardSeedPost(scopedLastPost) ? [scopedLastPost] : []),
   ].forEach((post, index) => {
     const key = `${getPostClubId(post) || "club"}-${getPostId(post) || `local-${index}`}`;
     map.set(key, {
@@ -340,23 +445,28 @@ function getCurrentUserIdentity() {
 
 function isMyLocalPost(post) {
   const user = getCurrentUserIdentity();
+  const currentOwnerKey = getMyPageUserStorageKey();
+  const ownerKey = String(post.ownerKey || post.owner || "").toLowerCase();
+  const ownerEmail = String(post.ownerEmail || "").toLowerCase();
+  const ownerUserId = String(post.ownerUserId || "");
   const authorId = String(post.authorId || post.userId || post.userid || post.writerId || post.memberId || "");
   const authorEmail = String(post.authorEmail || post.email || post.writerEmail || "").toLowerCase();
   const authorName = String(post.authorName || post.writerName || post.memberName || post.author || "");
 
-  if (post.createdByCurrentUser === true || post.isMine === true || post.createdByMe === true) return true;
+  if (ownerKey && ownerKey === currentOwnerKey) return true;
+  if (user.email && ownerEmail && user.email === ownerEmail) return true;
+  if (user.userId && ownerUserId && user.userId === ownerUserId) return true;
   if (user.userId && authorId && user.userId === authorId) return true;
   if (user.email && authorEmail && user.email === authorEmail) return true;
-  if (user.name && authorName && (user.name === authorName || isMaskedNameMatch(user.name, authorName))) return true;
+  // 이름만으로는 다른 계정의 게시물이 섞일 수 있어서,
+  // 마이페이지 로컬 게시물 판별에는 이메일/사용자ID/계정별 저장키만 사용합니다.
 
-  const createdIds = safeJsonParse(localStorage.getItem("myCreatedBoardPostIds"), []) || [];
+  const createdIds = getScopedMyPageList("myCreatedBoardPostIds");
   const clubId = getPostClubId(post);
   const postId = getPostId(post);
   if (clubId && postId && createdIds.some((item) => String(item.clubId) === String(clubId) && String(item.postId) === String(postId))) {
     return true;
   }
-
-  if ((post.source === "board-local-cache" || post.source === "club-detail-board-cache") && ((!authorId && !authorEmail) || authorName === "나" || post.createdByCurrentUser === true)) return true;
 
   return false;
 }
@@ -375,13 +485,7 @@ function getLocalMyPosts() {
   const localPosts = getLocalBoardPosts();
   const matchedPosts = localPosts.filter(isMyLocalPost);
 
-  // API가 아직 내가 쓴 게시글을 제대로 못 내려주거나, 이전 버전에서 작성한 글은
-  // 작성자 식별값이 부족할 수 있어서 로컬 게시판 작성 글을 보조로 보여준다.
-  const postsToShow = matchedPosts.length > 0
-    ? matchedPosts
-    : localPosts.filter((post) => post.source === "board-local-cache");
-
-  return postsToShow.map(normalizeLocalPost);
+  return matchedPosts.map(normalizeLocalPost);
 }
 
 function normalizeBoardPostFromClub(post, club = {}) {
@@ -401,7 +505,7 @@ function isProbablyMyApiPost(post) {
 
   if (user.userId && authorId && user.userId === authorId) return true;
   if (user.email && authorEmail && user.email === authorEmail) return true;
-  if (user.name && authorName && (user.name === authorName || isMaskedNameMatch(user.name, authorName))) return true;
+  // 이름만으로 비교하면 같은 브라우저의 다른 계정 게시물이 섞일 수 있으므로 사용하지 않습니다.
 
   return false;
 }
@@ -557,8 +661,8 @@ function renderOperatorArea() {
   const request = getOperatorRequest();
   const clubName = request.clubName || "운영 동아리";
   const statusText = request.clubName
-    ? `${request.clubName} 운영자 신청 상태입니다. 학교 승인 후 실제 관리 기능을 사용할 수 있습니다.`
-    : "학교 승인 후 동아리 정보 수정 기능을 사용할 수 있습니다.";
+    ? `${request.clubName} 운영자로 로그인되었습니다. 운영진 메뉴를 바로 사용할 수 있습니다.`
+    : "운영자 권한으로 로그인되었습니다. 운영 동아리를 선택해 관리 기능을 사용할 수 있습니다.";
 
   const operatorClubName = document.querySelector("#operatorClubName");
   const operatorDashboardClubName = document.querySelector("#operatorDashboardClubName");
@@ -570,21 +674,66 @@ function renderOperatorArea() {
 }
 
 function normalizeUserFromApi(data = {}) {
+  const role = normalizeMyPageRoleValue(
+    data.role ||
+      data.signupRole ||
+      data.memberType ||
+      data.membertype ||
+      data.userRole ||
+      data.authority ||
+      data.authorities ||
+      data.roles ||
+      "ROLE_STUDENT"
+  ) || "ROLE_STUDENT";
+
+  const operatorStatus = data.operatorStatus || data.clubAdminRequestStatus || data.adminRequestStatus || "";
+  const normalizedStatus = String(operatorStatus || "").toUpperCase();
+  const isApprovedOperator =
+    role === "ROLE_CLUB_ADMIN" ||
+    ["APPROVED", "ACCEPTED", "ACTIVE", "COMPLETE", "COMPLETED"].includes(normalizedStatus) ||
+    Boolean(data.operatorRequest || data.clubAdminRequest);
+
   return {
     userId: data.userId || data.userid || data.id || "",
     email: data.email || "",
     name: data.name || "",
     studentId: data.studentId || data.studentid || "",
     department: data.department || "",
-    role: data.role || "ROLE_STUDENT",
+    role: isApprovedOperator ? "ROLE_CLUB_ADMIN" : role,
+    memberType: isApprovedOperator ? "CLUB_ADMIN" : (data.memberType || data.membertype || ""),
+    signupRole: data.signupRole || (isApprovedOperator ? "ROLE_CLUB_ADMIN" : ""),
+    operatorStatus: operatorStatus || (isApprovedOperator ? "APPROVED" : ""),
+    operatorRequest: data.operatorRequest || data.clubAdminRequest || null,
     createdAt: data.createdAt || "",
     joinDate: data.createdAt || data.joinDate || data.createdAtText || "",
     emailVerified: data.emailVerified ?? data.emailverified ?? data.verified ?? data.emailAuthVerified ?? true,
   };
 }
-
 function saveUserFromApi(data = {}) {
-  const nextUser = normalizeUserFromApi(data);
+  const storedUser = getStoredUser() || {};
+  let nextUser = normalizeUserFromApi({
+    ...storedUser,
+    ...data,
+    email: data.email || storedUser.email || localStorage.getItem("lastLoginEmail") || "",
+    name: data.name || storedUser.name || "",
+    studentId: data.studentId || data.studentid || storedUser.studentId || storedUser.studentid || "",
+    department: data.department || storedUser.department || "",
+    role: data.role || data.memberType || data.membertype || storedUser.role || storedUser.memberType || "ROLE_STUDENT",
+    memberType: data.memberType || data.membertype || storedUser.memberType || "",
+    signupRole: data.signupRole || storedUser.signupRole || "",
+    operatorStatus: data.operatorStatus || data.clubAdminRequestStatus || storedUser.operatorStatus || "",
+  });
+
+  if (typeof applyOperatorRoleOverride === "function") {
+    nextUser = applyOperatorRoleOverride(nextUser);
+  }
+
+  if (typeof saveAccountRoleForEmail === "function" && nextUser.email) {
+    const normalizedRole = normalizeMyPageRoleValue(nextUser.role || nextUser.memberType || "");
+    if (normalizedRole === "ROLE_CLUB_ADMIN") {
+      saveAccountRoleForEmail(nextUser.email, "ROLE_CLUB_ADMIN");
+    }
+  }
 
   saveStoredUser(nextUser);
   mypageState.user = {
@@ -896,7 +1045,7 @@ function renderApplications() {
       const createdAt = application.createdAt || application.appliedAt || application.createdDate || "";
 
       return `
-        <article class="mypage-api-card application-history-card" data-application-id="${escapeHtml(applicationId)}">
+        <article class="mypage-api-card application-history-card" data-application-id="${escapeHtml(applicationId)}" data-application-club-id="${escapeHtml(clubId)}">
           <div class="mypage-api-card-head">
             <div>
               <h3>${escapeHtml(clubName)}</h3>
@@ -936,6 +1085,10 @@ function bindApplicationCancelButtons() {
         await apiRequest(`/api/applications/${applicationId}`, {
           method: "DELETE",
         });
+
+        const card = button.closest("[data-application-id]");
+        const clubId = card?.dataset.applicationClubId || "";
+        updateLocalApplicationStatus(applicationId, "CANCELLED", clubId);
 
         alert("지원 신청이 취소되었습니다.");
         await loadMyApplications();
@@ -1002,6 +1155,7 @@ function renderMyPosts() {
 
 function renderOperatorRecentPosts() {
   const list = document.querySelector("#operatorRecentPostList");
+  updateOperatorBoardLinks();
   if (!list) return;
 
   const posts = mypageState.operatorRecentPosts || [];
@@ -1048,13 +1202,289 @@ function renderOperatorRecentPosts() {
   });
 }
 
-function getApplicationCacheForMyPage() {
+
+function getPrimaryOperatorClubForLink() {
+  if (Array.isArray(mypageState.operatorClubs) && mypageState.operatorClubs.length > 0) {
+    return mypageState.operatorClubs[0];
+  }
+
+  const fallbackClub = typeof getOperatorFallbackClub === "function" ? getOperatorFallbackClub() : null;
+  if (fallbackClub) return fallbackClub;
+
+  if (Array.isArray(mypageState.joinedClubs) && mypageState.joinedClubs.length > 0) {
+    return mypageState.joinedClubs[0];
+  }
+
+  return null;
+}
+
+function updateOperatorBoardLinks() {
+  const writeButton = document.querySelector("#operatorWritePostBtn");
+  const boardButton = document.querySelector("#operatorBoardViewBtn");
+  const club = getPrimaryOperatorClubForLink();
+  const clubId = club?.clubId || club?.id || "";
+
+  if (writeButton) {
+    writeButton.textContent = "글쓰기";
+    writeButton.setAttribute("aria-label", "운영 동아리 게시글 작성");
+    writeButton.href = clubId
+      ? `./club-detail.html?clubId=${encodeURIComponent(clubId)}&tab=board&mode=write`
+      : "./club-list.html";
+
+    writeButton.onclick = function (event) {
+      if (clubId) return;
+      event.preventDefault();
+      alert("운영 중인 동아리 정보를 찾을 수 없습니다.");
+    };
+  }
+
+  if (boardButton) {
+    boardButton.href = clubId
+      ? `./club-detail.html?clubId=${encodeURIComponent(clubId)}&tab=board`
+      : "./club-list.html";
+  }
+}
+
+function getOperatorManagedPosts() {
+  const club = getPrimaryOperatorClubForLink();
+  const clubId = String(club?.clubId || club?.id || "");
+
+  return (mypageState.operatorRecentPosts || [])
+    .filter((post) => {
+      const postClubId = String(getPostClubId(post) || post.__clubId || "");
+      return !clubId || postClubId === clubId;
+    })
+    .sort((a, b) => String(b.createdAt || b.updatedAt || "").localeCompare(String(a.createdAt || a.updatedAt || "")));
+}
+
+function updateOperatorBoardManageLinks() {
+  const club = getPrimaryOperatorClubForLink();
+  const clubId = club?.clubId || club?.id || "";
+  const clubName = club?.name || "운영 동아리";
+  const clubNameTarget = document.querySelector("#operatorBoardManageClubName");
+  const writeButton = document.querySelector("#operatorBoardManageWriteBtn");
+  const openButton = document.querySelector("#operatorBoardManageOpenBtn");
+
+  if (clubNameTarget) clubNameTarget.textContent = `${clubName} 게시글`;
+
+  [writeButton, openButton].forEach((button) => {
+    if (!button) return;
+    button.href = clubId
+      ? `./club-detail.html?clubId=${encodeURIComponent(clubId)}&tab=board${button === writeButton ? "&mode=write" : ""}`
+      : "./club-list.html";
+    button.onclick = function (event) {
+      if (clubId) return;
+      event.preventDefault();
+      alert("운영 중인 동아리 정보를 찾을 수 없습니다.");
+    };
+  });
+}
+
+function removeOperatorPostFromLocalCaches(clubId, postId) {
+  const targets = [
+    "clubBoardPosts",
+    `clubBoardPosts_${clubId}`,
+    scopedMyPageStorageKey("mypageMyPosts"),
+    scopedMyPageStorageKey("myCreatedBoardPosts"),
+  ];
+
+  targets.forEach((key) => {
+    const list = safeJsonParse(localStorage.getItem(key), []);
+    if (!Array.isArray(list)) return;
+
+    const next = list.filter((post) => {
+      const sameClub = String(getPostClubId(post) || post.clubId || "") === String(clubId);
+      const samePost = String(getPostId(post) || post.postId || post.id || "") === String(postId);
+      return !(sameClub && samePost);
+    });
+
+    localStorage.setItem(key, JSON.stringify(next));
+  });
+
+  const lastPost = getScopedMyPageItem("lastCreatedBoardPost", null);
+  if (lastPost) {
+    const sameClub = String(getPostClubId(lastPost) || lastPost.clubId || "") === String(clubId);
+    const samePost = String(getPostId(lastPost) || lastPost.postId || lastPost.id || "") === String(postId);
+    if (sameClub && samePost) {
+      localStorage.removeItem(scopedMyPageStorageKey("lastCreatedBoardPost"));
+    }
+  }
+
+  const createdIds = getScopedMyPageList("myCreatedBoardPostIds");
+  if (Array.isArray(createdIds)) {
+    const nextIds = createdIds.filter((item) => {
+      return !(String(item.clubId || "") === String(clubId) && String(item.postId || "") === String(postId));
+    });
+    localStorage.setItem(scopedMyPageStorageKey("myCreatedBoardPostIds"), JSON.stringify(nextIds));
+  }
+
+  sessionStorage.setItem("mypagePostsDirty", "true");
+}
+
+async function deleteOperatorManagedPost(clubId, postId) {
+  if (!clubId || !postId) {
+    alert("삭제할 게시글 정보를 찾을 수 없습니다.");
+    return;
+  }
+
+  const ok = confirm("이 게시글을 삭제할까요?");
+  if (!ok) return;
+
+  try {
+    await apiRequest(`/api/clubs/${clubId}/posts/${postId}`, {
+      method: "DELETE",
+    });
+
+    removeOperatorPostFromLocalCaches(clubId, postId);
+    mypageState.operatorRecentPosts = (mypageState.operatorRecentPosts || []).filter((post) => {
+      const sameClub = String(getPostClubId(post) || post.__clubId || "") === String(clubId);
+      const samePost = String(getPostId(post) || "") === String(postId);
+      return !(sameClub && samePost);
+    });
+
+    await loadOperatorRecentPosts();
+    renderOperatorRecentPosts();
+    renderOperatorBoardManagement();
+    alert("게시글이 삭제되었습니다.");
+  } catch (error) {
+    console.error(error);
+    alert(error.message || "게시글 삭제에 실패했습니다.");
+  }
+}
+
+function renderOperatorBoardManagement() {
+  const summary = document.querySelector("#operatorBoardManageSummary");
+  const list = document.querySelector("#operatorBoardManageList");
+  if (!summary || !list) return;
+
+  updateOperatorBoardManageLinks();
+
+  if (!isOperatorUser()) {
+    summary.textContent = "운영진 권한이 있어야 게시판을 관리할 수 있습니다.";
+    list.innerHTML = `<div class="mypage-empty-line">운영진 권한이 없습니다.</div>`;
+    return;
+  }
+
+  const club = getPrimaryOperatorClubForLink();
+  const posts = getOperatorManagedPosts();
+
+  if (!club) {
+    summary.textContent = "운영 중인 동아리 정보를 찾을 수 없습니다.";
+    list.innerHTML = `<div class="mypage-empty-line">운영 중인 동아리 정보를 찾을 수 없습니다.</div>`;
+    return;
+  }
+
+  if (posts.length === 0) {
+    summary.textContent = `${club.name || "운영 동아리"} 게시글이 없습니다.`;
+    list.innerHTML = `<div class="mypage-empty-line">등록된 게시글이 없습니다.</div>`;
+    return;
+  }
+
+  summary.textContent = `${club.name || "운영 동아리"} 게시글 ${posts.length}개를 관리할 수 있습니다.`;
+  list.innerHTML = posts
+    .map((post) => {
+      const clubId = String(getPostClubId(post) || post.__clubId || club.clubId || club.id || "");
+      const postId = String(getPostId(post) || "");
+      const title = post.title || "제목 없음";
+      const author = post.authorName || post.writerName || post.memberName || post.author || "작성자";
+      const date = formatDate(post.createdAt || post.updatedAt || "");
+      const viewCount = post.viewCount ?? post.views ?? 0;
+
+      return `
+        <article class="operator-board-manage-item" data-managed-club-id="${escapeHtml(clubId)}" data-managed-post-id="${escapeHtml(postId)}">
+          <div class="operator-board-manage-main">
+            <span>${getPostCategoryLabel(post.category)}</span>
+            <strong>${escapeHtml(title)}</strong>
+            <p>${escapeHtml(author)} · ${escapeHtml(date)} · 조회수 ${escapeHtml(viewCount)}</p>
+          </div>
+          <div class="operator-board-manage-actions">
+            <a href="./club-detail.html?clubId=${encodeURIComponent(clubId)}&tab=board&postId=${encodeURIComponent(postId)}">보기</a>
+            <button type="button" data-delete-managed-post="${escapeHtml(postId)}">삭제</button>
+          </div>
+        </article>
+      `;
+    })
+    .join("\n\n");
+
+  document.querySelectorAll("[data-delete-managed-post]").forEach((button) => {
+    button.onclick = function () {
+      const item = button.closest("[data-managed-post-id]");
+      const clubId = item?.dataset.managedClubId || "";
+      const postId = item?.dataset.managedPostId || button.dataset.deleteManagedPost || "";
+      deleteOperatorManagedPost(clubId, postId);
+    };
+  });
+}
+
+function getCurrentApplicationUserIdentity() {
+  const user = getDisplayUser() || {};
+  return {
+    userId: String(user.userId || user.userid || user.id || ""),
+    email: String(user.email || "").trim().toLowerCase(),
+    studentId: String(user.studentId || user.studentid || "").trim(),
+    name: String(user.name || "").trim(),
+    ownerKey: getMyPageUserStorageKey(),
+  };
+}
+
+function getApplicationCache() {
   return safeJsonParse(localStorage.getItem("clubApplicationCache"), []) || [];
 }
 
-function normalizeMyApplication(application) {
+function saveApplicationCache(applications) {
+  localStorage.setItem("clubApplicationCache", JSON.stringify(applications || []));
+}
+
+function getApplicationPersonKey(application = {}) {
+  const email = String(application.email || application.memberEmail || application.applicantEmail || application.userEmail || "").trim().toLowerCase();
+  const studentId = String(application.studentId || application.studentid || application.memberStudentId || application.applicantStudentId || "").trim();
+  const userId = String(application.userId || application.userid || application.memberId || application.applicantId || application.ownerUserId || "").trim();
+  const name = String(application.studentName || application.memberName || application.userName || application.name || application.applicantName || "").trim();
+
+  if (email) return `email:${email}`;
+  if (studentId) return `student:${studentId}`;
+  if (userId) return `user:${userId}`;
+  if (name) return `name:${name}`;
+  return "";
+}
+
+function getApplicationMergeKey(application = {}, index = 0) {
+  const clubId = String(getApplicationClubId(application) || "");
+  const personKey = getApplicationPersonKey(application);
+  const status = String(application.status || "PENDING").toUpperCase();
+  const date = formatDate(application.createdAt || application.appliedAt || application.createdDate || "");
+  const applicationId = String(getApplicationId(application) || "");
+
+  // 백엔드가 applicationId를 내려주고 로컬 캐시는 local-* ID를 가질 때가 있어서,
+  // 같은 동아리/같은 사람/같은 상태/같은 날짜면 같은 지원 내역으로 묶는다.
+  if (clubId && (personKey || date)) return `fingerprint:${clubId}|${personKey || "unknown"}|${status}|${date || "no-date"}`;
+  if (applicationId) return `id:${applicationId}`;
+  return `index:${index}`;
+}
+
+function isApplicationForCurrentUser(application = {}) {
+  const current = getCurrentApplicationUserIdentity();
+  const appEmail = String(application.email || application.memberEmail || application.applicantEmail || application.userEmail || "").trim().toLowerCase();
+  const appStudentId = String(application.studentId || application.studentid || application.memberStudentId || application.applicantStudentId || "").trim();
+  const appUserId = String(application.userId || application.userid || application.memberId || application.applicantId || application.ownerUserId || "").trim();
+  const appOwnerKey = String(application.ownerKey || application.owner || "").trim().toLowerCase();
+
+  if (current.email && appEmail) return current.email === appEmail;
+  if (current.studentId && appStudentId) return current.studentId === appStudentId;
+  if (current.userId && appUserId) return current.userId === appUserId;
+  if (current.ownerKey && appOwnerKey) return current.ownerKey === appOwnerKey;
+
+  // 예전에 저장된 로컬 데이터에 식별값이 없으면 현재 브라우저의 지원 내역으로 간주한다.
+  return !appEmail && !appStudentId && !appUserId && !appOwnerKey;
+}
+
+function getApplicationCacheForMyPage() {
+  return getApplicationCache().filter(isApplicationForCurrentUser);
+}
+
+function getAnswerTextFromApplication(application = {}) {
   const answers = Array.isArray(application.answers) ? application.answers : [];
-  const answerText = answers
+  return answers
     .map((answer) => {
       const label = answer.label || answer.questionTitle || answer.question || `문항 ${answer.questionId || ""}`.trim();
       const value = Array.isArray(answer.values) ? answer.values.join(", ") : answer.value || answer.answer || "";
@@ -1062,15 +1492,34 @@ function normalizeMyApplication(application) {
     })
     .filter(Boolean)
     .join("\n\n");
+}
+
+function normalizeMyApplication(application) {
+  const answerText = getAnswerTextFromApplication(application);
 
   return {
     ...application,
     applicationId: getApplicationId(application),
     clubId: getApplicationClubId(application),
     clubName: getApplicationClubName(application),
-    status: application.status || "PENDING",
-    content: application.content || application.answer || application.answersText || answerText || "지원 내용이 저장되어 있습니다.",
+    status: String(application.status || "PENDING").toUpperCase(),
+    content: application.content || application.answer || application.answersText || answerText || "",
     createdAt: application.createdAt || application.appliedAt || application.createdDate || "",
+  };
+}
+
+function mergeApplicationRecords(previous = {}, next = {}) {
+  const previousContent = previous.content || previous.answer || previous.answersText || getAnswerTextFromApplication(previous);
+  const nextContent = next.content || next.answer || next.answersText || getAnswerTextFromApplication(next);
+
+  return {
+    ...previous,
+    ...next,
+    content: nextContent || previousContent || "",
+    answers: Array.isArray(next.answers) && next.answers.length ? next.answers : previous.answers,
+    clubId: getApplicationClubId(next) || getApplicationClubId(previous),
+    clubName: getApplicationClubName(next) || getApplicationClubName(previous),
+    applicationId: getApplicationId(next) || getApplicationId(previous),
   };
 }
 
@@ -1078,17 +1527,72 @@ function mergeApplicationsForMyPage(apiApplications = [], localApplications = []
   const map = new Map();
 
   localApplications.map(normalizeMyApplication).forEach((item, index) => {
-    const key = getApplicationId(item) || `${getApplicationClubId(item)}-${item.studentId || item.studentid || index}`;
+    const key = getApplicationMergeKey(item, index);
     map.set(key, item);
   });
 
-  apiApplications.map(normalizeMyApplication).forEach((item, index) => {
-    const key = getApplicationId(item) || `${getApplicationClubId(item)}-${item.studentId || item.studentid || index}`;
+  apiApplications.map(normalizeMyApplication).filter(isApplicationForCurrentUser).forEach((item, index) => {
+    const key = getApplicationMergeKey(item, index);
     const previous = map.get(key) || {};
-    map.set(key, { ...previous, ...item });
+    map.set(key, mergeApplicationRecords(previous, item));
   });
 
-  return Array.from(map.values()).sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+  const sorted = Array.from(map.values()).sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+  const latestByClub = new Map();
+
+  sorted.forEach((item, index) => {
+    const clubId = String(getApplicationClubId(item) || "");
+    const key = clubId || `application-${index}`;
+    if (!latestByClub.has(key)) latestByClub.set(key, item);
+  });
+
+  return Array.from(latestByClub.values());
+}
+
+function updateLocalApplicationStatus(applicationId, nextStatus, clubId = "") {
+  const current = getCurrentApplicationUserIdentity();
+  const applications = getApplicationCache().map((item) => {
+    const sameId = applicationId && String(getApplicationId(item)) === String(applicationId);
+    const sameClubAndUser =
+      clubId &&
+      String(getApplicationClubId(item)) === String(clubId) &&
+      isApplicationForCurrentUser(item) &&
+      String(item.status || "PENDING").toUpperCase() === "PENDING";
+
+    if (sameId || sameClubAndUser) {
+      return {
+        ...item,
+        status: nextStatus,
+        ownerKey: item.ownerKey || current.ownerKey,
+        ownerEmail: item.ownerEmail || current.email,
+        updatedAt: new Date().toISOString(),
+      };
+    }
+    return item;
+  });
+  saveApplicationCache(applications);
+}
+
+function updateLocalOperatorApplicationStatus(applicationId, nextStatus, clubId = "", personKey = "") {
+  const applications = getApplicationCache().map((item) => {
+    const sameId = applicationId && String(getApplicationId(item)) === String(applicationId);
+    const sameClubAndPerson =
+      clubId &&
+      personKey &&
+      String(getApplicationClubId(item)) === String(clubId) &&
+      getApplicationPersonKey(item) === personKey &&
+      String(item.status || "PENDING").toUpperCase() === "PENDING";
+
+    if (sameId || sameClubAndPerson) {
+      return {
+        ...item,
+        status: nextStatus,
+        updatedAt: new Date().toISOString(),
+      };
+    }
+    return item;
+  });
+  saveApplicationCache(applications);
 }
 
 async function loadMyApplications() {
@@ -1105,6 +1609,256 @@ async function loadMyApplications() {
   mypageState.applications = mergeApplicationsForMyPage(apiApplications, localApplications);
   const target = mypageState.activity.find((item) => item.key === "applications");
   if (target) target.count = mypageState.applications.length;
+}
+
+function normalizeOperatorApplication(application, fallbackClub = {}) {
+  const answerText = getAnswerTextFromApplication(application);
+  const clubId = String(getApplicationClubId(application) || fallbackClub.clubId || fallbackClub.id || "");
+  const clubName = getApplicationClubName(application) || fallbackClub.name || "운영 동아리";
+
+  return {
+    ...application,
+    applicationId: getApplicationId(application),
+    clubId,
+    clubName,
+    studentName: application.studentName || application.memberName || application.userName || application.name || application.applicantName || "이름 없음",
+    studentId: application.studentId || application.studentid || application.memberStudentId || application.applicantStudentId || "-",
+    department: application.department || application.memberDepartment || application.applicantDepartment || "-",
+    email: application.email || application.memberEmail || application.applicantEmail || "-",
+    status: String(application.status || "PENDING").toUpperCase(),
+    content: application.content || application.answer || application.answersText || answerText || "",
+    createdAt: application.createdAt || application.appliedAt || application.createdDate || "",
+  };
+}
+
+function mergeOperatorApplications(applications = []) {
+  const map = new Map();
+
+  applications.map(normalizeOperatorApplication).forEach((item, index) => {
+    const key = getApplicationMergeKey(item, index);
+    const previous = map.get(key) || {};
+    map.set(key, mergeApplicationRecords(previous, item));
+  });
+
+  return Array.from(map.values()).sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+}
+
+function getLocalApplicationsForOperatorClub(club, status = "") {
+  const clubId = String(club?.clubId || club?.id || "");
+  return getApplicationCache()
+    .filter((item) => String(getApplicationClubId(item)) === clubId)
+    .filter((item) => (status ? String(item.status || "PENDING").toUpperCase() === status : true))
+    .map((item) => normalizeOperatorApplication(item, club));
+}
+
+async function fetchOperatorApplicationsForClub(club) {
+  const clubId = String(club?.clubId || club?.id || "");
+  if (!clubId) return [];
+
+  const statuses = ["PENDING", "APPROVED", "REJECTED"];
+  const results = await Promise.allSettled(
+    statuses.map(async (status) => {
+      const result = await apiRequest(`/api/clubs/${clubId}/applications?status=${encodeURIComponent(status)}`);
+      return getPagedContent(result).map((item) => normalizeOperatorApplication({ ...item, status: item.status || status }, club));
+    })
+  );
+
+  return results
+    .filter((result) => result.status === "fulfilled")
+    .flatMap((result) => result.value);
+}
+
+async function loadOperatorApplicants() {
+  if (!isOperatorUser()) {
+    mypageState.operatorApplicants = [];
+    return;
+  }
+
+  const club = getPrimaryOperatorClubForLink();
+  if (!club) {
+    mypageState.operatorApplicants = [];
+    return;
+  }
+
+  let apiApplications = [];
+  try {
+    apiApplications = await fetchOperatorApplicationsForClub(club);
+  } catch (error) {
+    console.warn("운영 동아리 지원자 API 조회 실패, 로컬 지원 내역으로 대체:", error);
+  }
+
+  const localApplications = getLocalApplicationsForOperatorClub(club);
+  mypageState.operatorApplicants = mergeOperatorApplications([...localApplications, ...apiApplications]);
+}
+
+function renderOperatorApplicantStats() {
+  const applicants = mypageState.operatorApplicants || [];
+  const pendingCount = applicants.filter((item) => String(item.status || "PENDING").toUpperCase() === "PENDING").length;
+  const approvedCount = applicants.filter((item) => String(item.status || "").toUpperCase() === "APPROVED").length;
+  const rejectedCount = applicants.filter((item) => String(item.status || "").toUpperCase() === "REJECTED").length;
+
+  const totalTarget = document.querySelector("#operatorTotalApplicantCount");
+  const pendingTarget = document.querySelector("#operatorPendingApplicantCount");
+  const approvedTarget = document.querySelector("#operatorApprovedApplicantCount");
+  const rejectedTarget = document.querySelector("#operatorRejectedApplicantCount");
+
+  if (totalTarget) totalTarget.textContent = `${applicants.length}명`;
+  if (pendingTarget) pendingTarget.textContent = `${pendingCount}명`;
+  if (approvedTarget) approvedTarget.textContent = `${approvedCount}명`;
+  if (rejectedTarget) rejectedTarget.textContent = `${rejectedCount}명`;
+}
+
+function renderOperatorApplicantPreview() {
+  const list = document.querySelector("#operatorApplicantPreviewList");
+  if (!list) return;
+
+  if (!isOperatorUser()) {
+    list.innerHTML = `<tr><td colspan="4">운영진 권한이 있어야 지원자를 확인할 수 있습니다.</td></tr>`;
+    return;
+  }
+
+  const applicants = (mypageState.operatorApplicants || []).slice(0, 4);
+
+  if (applicants.length === 0) {
+    list.innerHTML = `<tr><td colspan="4">조회된 지원자가 없습니다.</td></tr>`;
+    return;
+  }
+
+  list.innerHTML = applicants
+    .map((application) => {
+      const status = String(application.status || "PENDING").toUpperCase();
+      return `
+        <tr data-tab-button="operator-applications">
+          <td>${escapeHtml(application.studentName || "이름 없음")}</td>
+          <td>${escapeHtml(application.department || "-")}</td>
+          <td>${escapeHtml(formatDate(application.createdAt))}</td>
+          <td><span class="operator-api-status ${getApplicationStatusClass(status)}">${getApplicationStatusLabel(status)}</span></td>
+        </tr>
+      `;
+    })
+    .join("\n");
+
+  list.querySelectorAll("[data-tab-button]").forEach((row) => {
+    row.onclick = () => setActiveTab("operator-applications");
+  });
+}
+
+function getFilteredOperatorApplicants() {
+  const status = mypageState.operatorApplicantStatusFilter;
+  return (mypageState.operatorApplicants || []).filter((item) => {
+    return status ? String(item.status || "PENDING").toUpperCase() === status : true;
+  });
+}
+
+function renderOperatorApplicationManagement() {
+  const summary = document.querySelector("#operatorApplicationsSummary");
+  const list = document.querySelector("#operatorApplicationsManageList");
+  if (!summary || !list) return;
+
+  if (!isOperatorUser()) {
+    summary.textContent = "운영진 권한이 있어야 지원자를 관리할 수 있습니다.";
+    list.innerHTML = `<div class="mypage-empty-line">운영진 권한이 없습니다.</div>`;
+    return;
+  }
+
+  const club = getPrimaryOperatorClubForLink();
+  const applicants = getFilteredOperatorApplicants();
+
+  if (!club) {
+    summary.textContent = "운영 중인 동아리 정보를 찾을 수 없습니다.";
+    list.innerHTML = `<div class="mypage-empty-line">운영 중인 동아리 정보를 찾을 수 없습니다.</div>`;
+    return;
+  }
+
+  document.querySelectorAll("[data-operator-application-filter]").forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.operatorApplicationFilter === mypageState.operatorApplicantStatusFilter);
+  });
+
+  if (applicants.length === 0) {
+    summary.textContent = `${club.name || "운영 동아리"} 지원자가 없습니다.`;
+    list.innerHTML = `<div class="mypage-empty-line">조회된 지원자가 없습니다.</div>`;
+    return;
+  }
+
+  summary.textContent = `${club.name || "운영 동아리"} 지원자 ${applicants.length}명을 확인할 수 있습니다.`;
+  list.innerHTML = applicants
+    .map((application) => {
+      const applicationId = getApplicationId(application);
+      const status = String(application.status || "PENDING").toUpperCase();
+      const isLocalOnly = String(applicationId).startsWith("local-");
+      const content = application.content || "백엔드 응답에 지원서 답변이 없어 기본 정보만 표시됩니다.";
+
+      return `
+        <article class="application-api-card operator-inline-application-card" data-operator-application-id="${escapeHtml(applicationId)}" data-operator-application-club-id="${escapeHtml(application.clubId || club.clubId || club.id || "")}" data-operator-application-person-key="${escapeHtml(getApplicationPersonKey(application))}">
+          <div class="application-api-head">
+            <div>
+              <h3>${escapeHtml(application.studentName || "이름 없음")}</h3>
+              <p>${escapeHtml(application.studentId || "-")} · ${escapeHtml(application.department || "-")}</p>
+            </div>
+            <span class="operator-api-status ${getApplicationStatusClass(status)}">${getApplicationStatusLabel(status)}</span>
+          </div>
+
+          <div class="application-api-info">
+            <p><strong>이메일</strong> ${escapeHtml(application.email || "-")}</p>
+            <p><strong>지원일</strong> ${escapeHtml(formatDate(application.createdAt))}</p>
+            ${isLocalOnly ? `<p><strong>표시</strong> 이 브라우저에서 제출된 로컬 지원 내역입니다.</p>` : ""}
+          </div>
+
+          <div class="application-api-content">
+            <strong>지원 내용</strong>
+            <p>${escapeHtml(content).replaceAll("\n", "<br />")}</p>
+          </div>
+
+          ${status === "PENDING" && applicationId ? `
+            <div class="application-api-actions">
+              <button type="button" class="operator-api-btn approve" data-operator-application-action="APPROVED">승인</button>
+              <button type="button" class="operator-api-btn reject" data-operator-application-action="REJECTED">거절</button>
+            </div>
+          ` : ""}
+        </article>
+      `;
+    })
+    .join("\n");
+
+  bindOperatorApplicationActionButtons();
+}
+
+function bindOperatorApplicationActionButtons() {
+  document.querySelectorAll("[data-operator-application-action]").forEach((button) => {
+    button.onclick = async function () {
+      const card = button.closest("[data-operator-application-id]");
+      const applicationId = card?.dataset.operatorApplicationId || "";
+      const clubId = card?.dataset.operatorApplicationClubId || "";
+      const personKey = card?.dataset.operatorApplicationPersonKey || "";
+      const nextStatus = button.dataset.operatorApplicationAction;
+      if (!applicationId || !nextStatus) return;
+
+      const message = nextStatus === "APPROVED" ? "이 지원자를 승인할까요?" : "이 지원자를 거절할까요?";
+      if (!confirm(message)) return;
+
+      button.disabled = true;
+      try {
+        if (!String(applicationId).startsWith("local-")) {
+          await apiRequest(`/api/applications/${applicationId}/status`, {
+            method: "PATCH",
+            body: { status: nextStatus },
+          });
+        }
+
+        updateLocalOperatorApplicationStatus(applicationId, nextStatus, clubId, personKey);
+        await loadOperatorApplicants();
+        renderOperatorApplicantStats();
+        renderOperatorApplicantPreview();
+        renderOperatorApplicationManagement();
+        alert(nextStatus === "APPROVED" ? "승인 처리되었습니다." : "거절 처리되었습니다.");
+      } catch (error) {
+        console.error(error);
+        alert(error.message || "처리에 실패했습니다.");
+      } finally {
+        button.disabled = false;
+      }
+    };
+  });
 }
 
 async function fetchMyPostsByCategoryFallback() {
@@ -1130,7 +1884,7 @@ async function fetchAllClubPostsForMyPage() {
     return [];
   }
 
-  const createdIds = safeJsonParse(localStorage.getItem("myCreatedBoardPostIds"), []) || [];
+  const createdIds = getScopedMyPageList("myCreatedBoardPostIds");
   const createdKeySet = new Set(createdIds.map((item) => `${String(item.clubId)}-${String(item.postId)}`));
 
   const results = await Promise.allSettled(
@@ -1214,7 +1968,7 @@ async function loadOperatorRecentPosts() {
     const postGroups = await Promise.all(
       clubs.slice(0, 3).map(async (club) => {
         try {
-          const result = await apiRequest(`/api/clubs/${club.clubId}/posts?page=0&size=5`);
+          const result = await apiRequest(`/api/clubs/${club.clubId}/posts?page=0&size=100`);
           const apiPosts = getPagedContent(result).map((post) => ({
             ...post,
             __clubId: club.clubId,
@@ -1251,6 +2005,10 @@ async function loadOperatorRecentPosts() {
 }
 
 function setActiveTab(tabName) {
+  if (String(tabName || "").startsWith("operator-") && !isOperatorUser()) {
+    tabName = "dashboard";
+  }
+
   document.querySelectorAll("[data-tab]").forEach((button) => {
     button.classList.toggle("is-active", button.dataset.tab === tabName);
   });
@@ -1280,8 +2038,12 @@ function setActiveTab(tabName) {
     renderMyPosts();
   }
 
-  if (tabName === "operator-dashboard" || tabName === "operator-board") {
+  if (tabName === "operator-dashboard" || tabName === "operator-board" || tabName === "operator-applications") {
+    renderOperatorApplicantStats();
+    renderOperatorApplicantPreview();
+    renderOperatorApplicationManagement();
     renderOperatorRecentPosts();
+    renderOperatorBoardManagement();
   }
 }
 
@@ -1313,6 +2075,26 @@ document.querySelector("#refreshMyPostsBtn")?.addEventListener("click", async ()
   await loadMyPosts();
   renderMyPosts();
   renderActivity();
+});
+
+document.querySelector("#operatorBoardRefreshBtn")?.addEventListener("click", async () => {
+  await loadOperatorRecentPosts();
+  renderOperatorRecentPosts();
+  renderOperatorBoardManagement();
+});
+
+document.querySelector("#operatorApplicationsRefreshBtn")?.addEventListener("click", async () => {
+  await loadOperatorApplicants();
+  renderOperatorApplicantStats();
+  renderOperatorApplicantPreview();
+  renderOperatorApplicationManagement();
+});
+
+document.querySelectorAll("[data-operator-application-filter]").forEach((button) => {
+  button.addEventListener("click", () => {
+    mypageState.operatorApplicantStatusFilter = button.dataset.operatorApplicationFilter || "";
+    renderOperatorApplicationManagement();
+  });
 });
 
 document.querySelector(".profile-edit-btn")?.addEventListener("click", async () => {
@@ -1391,42 +2173,49 @@ document.querySelector("#changePasswordBtn")?.addEventListener("click", async ()
 });
 
 document.querySelector("#withdrawAccountBtn")?.addEventListener("click", async () => {
-  const ok = confirm("정말 회원 탈퇴하시겠습니까? 탈퇴 후에는 현재 계정으로 로그인할 수 없습니다.");
+  const user = getDisplayUser() || {};
+  const emailText = user.email ? `\n\n삭제 계정: ${user.email}` : "";
+  const ok = confirm(
+    "정말 회원 탈퇴를 진행할까요?\n" +
+      "탈퇴하면 현재 계정의 로그인 정보, 회원가입 유형, 스크랩/내 게시물 캐시가 삭제됩니다." +
+      emailText
+  );
 
   if (!ok) return;
 
-  const finalCheck = prompt("탈퇴하려면 '회원탈퇴'를 입력해주세요.");
-
-  if (finalCheck !== "회원탈퇴") {
-    alert("회원 탈퇴가 취소되었습니다.");
-    return;
-  }
+  const secondOk = confirm("한 번 더 확인합니다. 정말 계정을 삭제할까요?");
+  if (!secondOk) return;
 
   const button = document.querySelector("#withdrawAccountBtn");
-  button.disabled = true;
+  if (button) {
+    button.disabled = true;
+    button.textContent = "탈퇴 처리 중...";
+  }
 
   try {
-    await apiRequest("/api/users/me", {
-      method: "DELETE",
-    });
+    const result = typeof deleteCurrentAccount === "function"
+      ? await deleteCurrentAccount()
+      : null;
 
-    alert("회원 탈퇴가 완료되었습니다.");
-
-    if (typeof clearAuthSession === "function") clearAuthSession();
-    else {
-      localStorage.clear();
-      sessionStorage.clear();
+    if (result?.serverDeleted) {
+      alert("회원 탈퇴가 완료되었습니다. 계정 정보가 삭제되었습니다.");
+    } else {
+      alert(
+        "회원 탈퇴 처리가 완료되었습니다.\n\n" +
+          "현재 백엔드에 실제 DB 계정 삭제 API가 없거나 연결되지 않아, " +
+          "프론트에서는 이 브라우저의 계정 정보를 삭제하고 같은 이메일 로그인을 막도록 처리했습니다."
+      );
     }
 
     window.location.href = "./index.html";
   } catch (error) {
     console.error(error);
-    alert(
-      error.message ||
-        "회원 탈퇴 API 호출에 실패했습니다. 백엔드에 DELETE /api/users/me 엔드포인트가 있는지 확인해주세요."
-    );
+    alert(error.message || "회원 탈퇴 처리 중 오류가 발생했습니다.");
   } finally {
-    button.disabled = false;
+    if (button) {
+      button.disabled = false;
+      button.textContent = "회원 탈퇴";
+    }
   }
 });
 
@@ -1477,15 +2266,63 @@ async function syncMyPageFromApi() {
     }));
 
     mypageState.operatorClubs = mypageState.joinedClubs.filter((club) => {
+      if (typeof isOperatorClubRoleValue === "function") {
+        return [club.myRole, club.role, club.clubRole, club.memberRole, club.position, club.category].some(isOperatorClubRoleValue);
+      }
       const role = String(club.myRole || club.category || "").toUpperCase();
-      return role.includes("ADMIN") || role.includes("OWNER") || role.includes("MANAGER") || role.includes("운영");
+      return (
+        role.includes("ADMIN") ||
+        role.includes("OWNER") ||
+        role.includes("MANAGER") ||
+        role.includes("PRESIDENT") ||
+        role.includes("LEADER") ||
+        role.includes("STAFF") ||
+        role.includes("OPERATOR") ||
+        role.includes("운영") ||
+        role.includes("회장") ||
+        role.includes("대표") ||
+        role.includes("관리")
+      );
     });
+
+    if (mypageState.operatorClubs.length > 0) {
+      const currentUser = getDisplayUser();
+      const operatorClub = mypageState.operatorClubs[0];
+      const fixedUser = typeof markUserAsOperatorFromClub === "function"
+        ? markUserAsOperatorFromClub(currentUser, operatorClub)
+        : {
+            ...currentUser,
+            role: "ROLE_CLUB_ADMIN",
+            signupRole: "ROLE_CLUB_ADMIN",
+            memberType: "CLUB_ADMIN",
+            operatorStatus: "APPROVED",
+          };
+      saveStoredUser(fixedUser);
+    }
 
     if (mypageState.operatorClubs.length === 0 && isOperatorUser() && mypageState.joinedClubs.length > 0) {
       mypageState.operatorClubs = [mypageState.joinedClubs[0]];
     }
+
+    if (isOperatorUser()) {
+      const fallbackClub = getOperatorFallbackClub();
+      if (fallbackClub && !mypageState.operatorClubs.some((club) => String(club.clubId) === String(fallbackClub.clubId))) {
+        mypageState.operatorClubs.unshift(fallbackClub);
+      }
+      if (fallbackClub && !mypageState.joinedClubs.some((club) => String(club.clubId) === String(fallbackClub.clubId))) {
+        mypageState.joinedClubs.unshift(fallbackClub);
+      }
+    }
   } catch (error) {
     console.warn("내 가입 동아리 API 조회 실패:", error);
+
+    if (isOperatorUser()) {
+      const fallbackClub = getOperatorFallbackClub();
+      if (fallbackClub) {
+        mypageState.operatorClubs = [fallbackClub];
+        if (mypageState.joinedClubs.length === 0) mypageState.joinedClubs = [fallbackClub];
+      }
+    }
   }
 
   try {
@@ -1497,7 +2334,24 @@ async function syncMyPageFromApi() {
 
   await loadMyApplications();
   await loadMyPosts();
+  await loadOperatorApplicants();
   await loadOperatorRecentPosts();
+}
+
+function getInitialMyPageTab() {
+  const params = new URLSearchParams(window.location.search);
+  const requestedTab = params.get("tab");
+
+  if (requestedTab) {
+    if (requestedTab.startsWith("operator-") && !isOperatorUser()) {
+      return "dashboard";
+    }
+
+    return requestedTab;
+  }
+
+  if (isOperatorUser()) return "operator-dashboard";
+  return "dashboard";
 }
 
 async function initMyPage() {
@@ -1512,7 +2366,14 @@ async function initMyPage() {
   renderScraps();
   renderApplications();
   renderMyPosts();
+  renderOperatorApplicantStats();
+  renderOperatorApplicantPreview();
+  renderOperatorApplicationManagement();
   renderOperatorRecentPosts();
+  renderOperatorBoardManagement();
+
+  const initialTab = getInitialMyPageTab();
+  setActiveTab(initialTab);
 }
 
 initMyPage();

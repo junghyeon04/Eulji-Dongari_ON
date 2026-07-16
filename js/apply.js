@@ -324,8 +324,21 @@ function renderApplicationQuestions(questions) {
   const container = ensureApplicationQuestionsContainer();
 
   if (!questions.length) {
-    setStaticQuestionRowsVisible(true);
-    container.innerHTML = "";
+    setStaticQuestionRowsVisible(false);
+    container.innerHTML = `
+      <div class="application-row application-textarea-row" data-fallback-application-field="지원동기">
+        <label for="fallbackMotivation">지원동기<span>*</span></label>
+        <textarea id="fallbackMotivation" required placeholder="지원동기를 작성해주세요."></textarea>
+      </div>
+      <div class="application-row application-textarea-row" data-fallback-application-field="자기소개">
+        <label for="fallbackIntroduction">자기소개<span>*</span></label>
+        <textarea id="fallbackIntroduction" required placeholder="자기소개를 작성해주세요."></textarea>
+      </div>
+      <div class="mypage-empty-line application-help-text">
+        현재 백엔드에 이 동아리의 질문 ID가 없으면 위 답변은 브라우저 임시 기록으로 저장됩니다.<br />
+        DB에도 답변을 저장하려면 함께 제공한 SQL로 지원동기/자기소개 질문을 먼저 추가해주세요.
+      </div>
+    `;
     return;
   }
 
@@ -405,33 +418,94 @@ function fillApplicantFromApplicationForm(formData) {
   fillApplicantFromUser(user);
 }
 
+async function fetchApplicationFormForClub(clubId) {
+  const result = await apiRequest(`/api/clubs/${clubId}/application-form`);
+  return {
+    result,
+    form: getApiData(result, {}),
+    questions: normalizeApplicationQuestions(result),
+  };
+}
+
 async function loadApplicationFormForClub(clubId) {
   applyState.applicationFormLoading = true;
 
   try {
-    const result = await apiRequest(`/api/clubs/${clubId}/application-form`);
-    const questions = normalizeApplicationQuestions(result);
+    const { result, form, questions } = await fetchApplicationFormForClub(clubId);
 
-    applyState.applicationForm = getApiData(result, {});
+    applyState.applicationForm = form;
     applyState.applicationQuestions = questions;
 
     fillApplicantFromApplicationForm(result);
     renderApplicationQuestions(questions);
+    return questions;
   } catch (error) {
     console.error("지원서 양식 조회 실패:", error);
     applyState.applicationForm = null;
     applyState.applicationQuestions = [];
 
-    const container = ensureApplicationQuestionsContainer();
-    container.innerHTML = `
-      <div class="mypage-empty-line">
-        지원서 질문을 불러오지 못했습니다. 기존 입력칸으로 제출합니다.
-      </div>
-    `;
-    setStaticQuestionRowsVisible(true);
+    renderApplicationQuestions([]);
+    return [];
   } finally {
     applyState.applicationFormLoading = false;
   }
+}
+
+function normalizeQuestionLabel(label) {
+  return String(label || "")
+    .replace(/\s+/g, "")
+    .replace(/[＊*]/g, "")
+    .trim()
+    .toLowerCase();
+}
+
+async function getLatestApplicationQuestionsBeforeSubmit(clubId) {
+  try {
+    const { form, questions } = await fetchApplicationFormForClub(clubId);
+    applyState.applicationForm = form;
+    applyState.applicationQuestions = questions;
+    return questions;
+  } catch (error) {
+    console.warn("제출 직전 지원서 질문 재조회 실패:", error);
+    return applyState.applicationQuestions || [];
+  }
+}
+
+function remapAnswersToLatestQuestions(currentAnswers, latestQuestions) {
+  if (!latestQuestions.length) return [];
+
+  const answersById = new Map(
+    (currentAnswers || []).map((answer) => [String(answer.questionId), answer])
+  );
+  const answersByLabel = new Map(
+    (currentAnswers || []).map((answer) => [normalizeQuestionLabel(answer.label), answer])
+  );
+
+  const remapped = latestQuestions.map((question) => {
+    const current =
+      answersById.get(String(question.questionId)) ||
+      answersByLabel.get(normalizeQuestionLabel(question.label)) ||
+      null;
+
+    const values = Array.isArray(current?.values)
+      ? current.values.filter((value) => String(value || "").trim())
+      : [];
+
+    return {
+      questionId: Number(question.questionId),
+      label: question.label,
+      value: values.join(", "),
+      values,
+      required: Boolean(question.required),
+    };
+  });
+
+  const missing = remapped.find((answer) => answer.required && answer.values.length === 0);
+  if (missing) {
+    throw new Error(`${missing.label} 항목을 입력해주세요.`);
+  }
+
+  return remapped;
 }
 
 function getQuestionInputValue(question) {
@@ -452,54 +526,54 @@ function getQuestionInputValue(question) {
   return { value, values: value ? [value] : [] };
 }
 
+function collectFallbackApplicationAnswers() {
+  const rows = Array.from(document.querySelectorAll("[data-fallback-application-field]"));
+
+  const answers = rows.map((row, index) => {
+    const label = row.dataset.fallbackApplicationField || `기본 문항 ${index + 1}`;
+    const value = row.querySelector("textarea, input")?.value?.trim() || "";
+    return {
+      questionId: null,
+      label,
+      value,
+      values: value ? [value] : [],
+      required: true,
+      localOnly: true,
+    };
+  });
+
+  const missing = answers.find((answer) => answer.required && answer.values.length === 0);
+  if (missing) {
+    throw new Error(`${missing.label} 항목을 입력해주세요.`);
+  }
+
+  return answers;
+}
+
 function collectApplicationAnswers() {
   const questions = applyState.applicationQuestions || [];
 
-  if (questions.length > 0) {
-    const answers = questions.map((question) => {
-      const result = getQuestionInputValue(question);
-      return {
-        questionId: Number(question.questionId),
-        label: question.label,
-        value: result.value,
-        values: result.values,
-        required: question.required,
-      };
-    });
-
-    const missing = answers.find((answer) => answer.required && answer.values.length === 0);
-    if (missing) {
-      throw new Error(`${missing.label} 항목을 입력해주세요.`);
-    }
-
-    return answers;
+  if (questions.length === 0) {
+    return collectFallbackApplicationAnswers();
   }
 
-  const reasonInput = document.querySelector("#applicantReason");
-  const introInput = document.querySelector("#applicantIntro");
-  const reason = reasonInput?.value.trim() || "";
-  const intro = introInput?.value.trim() || "";
+  const answers = questions.map((question) => {
+    const result = getQuestionInputValue(question);
+    return {
+      questionId: Number(question.questionId),
+      label: question.label,
+      value: result.value,
+      values: result.values,
+      required: question.required,
+    };
+  });
 
-  if (!reason || !intro) {
-    throw new Error("지원동기와 자기소개를 입력해주세요.");
+  const missing = answers.find((answer) => answer.required && answer.values.length === 0);
+  if (missing) {
+    throw new Error(`${missing.label} 항목을 입력해주세요.`);
   }
 
-  return [
-    {
-      questionId: 1,
-      label: "지원동기",
-      value: reason,
-      values: [reason],
-      required: true,
-    },
-    {
-      questionId: 2,
-      label: "자기소개",
-      value: intro,
-      values: [intro],
-      required: true,
-    },
-  ];
+  return answers;
 }
 
 
@@ -561,6 +635,7 @@ function saveSubmittedApplicationLocally(result, club, answers) {
   const applicant = getCurrentApplicantSnapshot();
   const now = new Date().toISOString();
   const applicationId = normalizeApplicationResponseId(result) || `local-${club.id}-${Date.now()}`;
+  const ownerKey = String(applicant.email || applicant.studentId || applicant.userId || "anonymous").trim().toLowerCase().replace(/[^a-z0-9가-힣@._-]/gi, "_") || "anonymous";
   const record = {
     applicationId,
     id: applicationId,
@@ -574,6 +649,9 @@ function saveSubmittedApplicationLocally(result, club, answers) {
     department: applicant.department,
     email: applicant.email,
     phone: applicant.phone,
+    ownerKey,
+    ownerEmail: String(applicant.email || "").trim().toLowerCase(),
+    ownerUserId: applicant.userId || "",
     status: "PENDING",
     answers,
     content: answers.map((item) => `${item.label}: ${item.value}`).join("\n\n"),
@@ -621,15 +699,28 @@ document.querySelector("#clubApplicationForm")?.addEventListener("submit", async
     }
 
     const selectedClub = applyClubs.find((club) => String(club.id) === String(applyState.selectedClubId));
-    const answers = collectApplicationAnswers();
+
+    // 1) 사용자가 현재 화면에 입력한 답변을 먼저 모은다.
+    // 2) 제출 직전에 백엔드에서 최신 질문 목록을 다시 가져온다.
+    // 3) 질문 ID가 바뀌었으면 질문 라벨 기준으로 최신 questionId에 답변을 다시 매칭한다.
+    // 백엔드 수정 없이도 "해당 동아리의 지원서 질문이 아닙니다" 오류를 최대한 피하기 위한 처리다.
+    const currentAnswers = collectApplicationAnswers();
+    const latestQuestions = await getLatestApplicationQuestionsBeforeSubmit(applyState.selectedClubId);
+    const answers = latestQuestions.length
+      ? remapAnswersToLatestQuestions(currentAnswers, latestQuestions)
+      : currentAnswers;
+
+    const requestAnswers = answers
+      .filter((item) => item.questionId && item.values && item.values.length > 0)
+      .map((item) => ({
+        questionId: item.questionId,
+        values: item.values,
+      }));
 
     const result = await apiRequest(`/api/clubs/${applyState.selectedClubId}/applications`, {
       method: "POST",
       body: {
-        answers: answers.map((item) => ({
-          questionId: item.questionId,
-          values: item.values,
-        })),
+        answers: requestAnswers,
       },
     });
 
@@ -643,7 +734,12 @@ document.querySelector("#clubApplicationForm")?.addEventListener("submit", async
     window.location.href = "./mypage.html?tab=applications";
   } catch (error) {
     console.error(error);
-    alert(error.message || "지원서 제출에 실패했습니다. 지원서 질문을 다시 불러온 뒤 시도해주세요.");
+    const message = String(error.message || "");
+    if (message.includes("지원서 질문") || message.includes("질문이 아닙니다")) {
+      alert("지원서 질문 정보가 맞지 않습니다. 동아리를 다시 선택하거나 새로고침 후 다시 제출해주세요.");
+    } else {
+      alert(message || "지원서 제출에 실패했습니다. 지원서 질문을 다시 불러온 뒤 시도해주세요.");
+    }
   } finally {
     if (submitButton) {
       submitButton.disabled = false;

@@ -1,7 +1,48 @@
 let currentStep = 1;
 let selectedRole = "ROLE_STUDENT";
+
+function isOperatorSignup() {
+  return selectedRole === "ROLE_CLUB_ADMIN" || selectedRole === "ROLE_CLUB_ADMIN_PENDING";
+}
+
+function getOperatorRoleOverrides() {
+  try {
+    return JSON.parse(localStorage.getItem("operatorRoleOverrides")) || {};
+  } catch {
+    return {};
+  }
+}
+
+function saveOperatorRoleOverride(user) {
+  if (!user?.email) return;
+
+  const normalizedEmail =
+    typeof normalizeOperatorEmail === "function"
+      ? normalizeOperatorEmail(user.email)
+      : String(user.email || "").trim().toLowerCase();
+
+  if (typeof saveAccountRoleForEmail === "function") {
+    saveAccountRoleForEmail(normalizedEmail, "ROLE_CLUB_ADMIN");
+  }
+
+  const overrides = getOperatorRoleOverrides();
+  overrides[normalizedEmail] = {
+    ...overrides[normalizedEmail],
+    ...user,
+    email: normalizedEmail,
+    role: "ROLE_CLUB_ADMIN",
+    signupRole: "ROLE_CLUB_ADMIN",
+    operatorStatus: "APPROVED",
+  };
+
+  localStorage.setItem("operatorRoleOverrides", JSON.stringify(overrides));
+  localStorage.setItem("lastOperatorSignupEmail", normalizedEmail);
+  localStorage.setItem("lastOperatorSignupUser", JSON.stringify(overrides[normalizedEmail]));
+}
+
 let emailVerified = false;
 let availableClubs = [];
+let selectedOperatorClubId = null;
 
 const signupCard = document.querySelector("#signupCard");
 const operatorBox = document.querySelector("#operatorRequestBox");
@@ -19,10 +60,10 @@ function showStep(step) {
     dot.classList.toggle("is-done", Number(dot.dataset.stepDot) < step);
   });
 
-  signupCard.classList.toggle("is-operator-form", step === 4 && selectedRole === "ROLE_CLUB_ADMIN_PENDING");
+  signupCard.classList.toggle("is-operator-form", step === 4 && isOperatorSignup());
   signupCard.classList.toggle("is-complete", step === 5);
   signupCard.classList.toggle("is-student-complete", step === 5 && selectedRole === "ROLE_STUDENT");
-  signupCard.classList.toggle("is-operator-complete", step === 5 && selectedRole === "ROLE_CLUB_ADMIN_PENDING");
+  signupCard.classList.toggle("is-operator-complete", step === 5 && isOperatorSignup());
 }
 
 function getSignupValues() {
@@ -48,14 +89,15 @@ function buildRegisteredUser(responseData = null) {
     name: responseData?.name || values.name,
     studentId: responseData?.studentId || responseData?.studentid || values.studentId,
     department: responseData?.department || values.department,
-    role: responseData?.role || "ROLE_STUDENT",
-    signupRole: selectedRole,
-    operatorStatus: responseData?.clubAdminRequestStatus || (selectedRole === "ROLE_CLUB_ADMIN_PENDING" ? "PENDING" : "NONE"),
+    role: isOperatorSignup() ? "ROLE_CLUB_ADMIN" : (responseData?.role || "ROLE_STUDENT"),
+    signupRole: isOperatorSignup() ? "ROLE_CLUB_ADMIN" : selectedRole,
+    operatorStatus: responseData?.clubAdminRequestStatus || (isOperatorSignup() ? "APPROVED" : "NONE"),
     createdAt: responseData?.createdAt || "",
   };
 
-  if (selectedRole === "ROLE_CLUB_ADMIN_PENDING") {
+  if (isOperatorSignup()) {
     user.operatorRequest = {
+      clubId: responseData?.clubId || responseData?.clubAdminRequest?.clubId || selectedOperatorClubId || null,
       clubType: values.operatorClubType,
       clubName: values.operatorClubName,
       clubRole: values.operatorRole,
@@ -70,7 +112,121 @@ function saveRegisteredUser(responseData = null) {
   const user = buildRegisteredUser(responseData);
   localStorage.setItem("registeredUser", JSON.stringify(user));
   localStorage.removeItem("currentUser");
+
+  const signupRole = isOperatorSignup() ? "ROLE_CLUB_ADMIN" : "ROLE_STUDENT";
+
+  if (typeof saveSignupAccountForEmail === "function") {
+    saveSignupAccountForEmail(user.email, user, signupRole);
+  } else if (typeof saveAccountRoleForEmail === "function") {
+    saveAccountRoleForEmail(user.email, signupRole);
+  }
+
+  if (isOperatorSignup()) {
+    saveOperatorRoleOverride(user);
+  }
+
   return user;
+}
+
+function saveStoredOperatorUser(user) {
+  localStorage.setItem("registeredUser", JSON.stringify(user));
+  if (typeof saveSignupAccountForEmail === "function") {
+    saveSignupAccountForEmail(user.email, user, "ROLE_CLUB_ADMIN");
+  } else if (typeof saveAccountRoleForEmail === "function") {
+    saveAccountRoleForEmail(user.email, "ROLE_CLUB_ADMIN");
+  }
+  saveOperatorRoleOverride(user);
+  return user;
+}
+
+function isDuplicateEmailError(error) {
+  const message = String(error?.message || "").toLowerCase();
+  return (
+    message.includes("이미") ||
+    message.includes("가입") ||
+    message.includes("duplicate") ||
+    message.includes("exist") ||
+    message.includes("중복")
+  ) && (
+    message.includes("이메일") ||
+    message.includes("email") ||
+    message.includes("회원") ||
+    message.includes("user")
+  );
+}
+
+async function restoreDeletedAccountSignup(values, completeTitle, completeMessage) {
+  const normalizedEmail =
+    typeof normalizeOperatorEmail === "function"
+      ? normalizeOperatorEmail(values.email)
+      : String(values.email || "").trim().toLowerCase();
+
+  if (!normalizedEmail || typeof isAccountDeleted !== "function" || !isAccountDeleted(normalizedEmail)) {
+    return false;
+  }
+
+  // 백엔드 탈퇴 API가 아직 없어 DB에는 계정이 남아 있는 경우가 있습니다.
+  // 이때 같은 이메일 회원가입은 백엔드에서 중복 처리되므로, 입력한 비밀번호로 기존 계정 로그인을 확인한 뒤
+  // 프론트의 탈퇴 표시를 해제해서 다시 이용할 수 있게 합니다.
+  let loginResult;
+  try {
+    loginResult = await apiRequest("/api/auth/login", {
+      method: "POST",
+      body: {
+        email: values.email,
+        password: values.password,
+        rememberMe: false,
+      },
+    });
+  } catch (loginError) {
+    console.error(loginError);
+    alert(
+      "백엔드 DB에 기존 계정이 남아 있어서 같은 이메일로 새 회원가입을 할 수 없습니다.\n" +
+      "기존 비밀번호가 맞으면 계정 복구로 처리할 수 있는데, 지금 입력한 비밀번호로는 기존 계정 로그인이 실패했습니다.\n\n" +
+      "해결 방법: 기존 비밀번호로 로그인하거나, 백엔드 팀에 실제 회원 삭제 API/DB 삭제를 요청해야 합니다."
+    );
+    return true;
+  }
+
+  if (typeof unmarkAccountDeletedForEmail === "function") {
+    unmarkAccountDeletedForEmail(normalizedEmail);
+  }
+
+  const loginData = {
+    ...(loginResult.data || {}),
+    email: loginResult.data?.email || normalizedEmail,
+  };
+
+  let user = buildRegisteredUser(loginData);
+  user.email = normalizedEmail;
+  user.role = isOperatorSignup() ? "ROLE_CLUB_ADMIN" : (user.role || "ROLE_STUDENT");
+  user.signupRole = isOperatorSignup() ? "ROLE_CLUB_ADMIN" : "ROLE_STUDENT";
+  user.memberType = isOperatorSignup() ? "CLUB_ADMIN" : "STUDENT";
+  user.operatorStatus = isOperatorSignup() ? "APPROVED" : (user.operatorStatus || "NONE");
+
+  if (typeof saveSignupAccountForEmail === "function") {
+    saveSignupAccountForEmail(normalizedEmail, user, isOperatorSignup() ? "ROLE_CLUB_ADMIN" : "ROLE_STUDENT");
+  } else if (typeof saveAccountRoleForEmail === "function") {
+    saveAccountRoleForEmail(normalizedEmail, isOperatorSignup() ? "ROLE_CLUB_ADMIN" : "ROLE_STUDENT");
+  }
+
+  if (isOperatorSignup()) {
+    saveStoredOperatorUser(user);
+    saveOperatorRoleOverride(user);
+  } else {
+    localStorage.setItem("registeredUser", JSON.stringify(user));
+  }
+
+  localStorage.setItem("signupRole", isOperatorSignup() ? "ROLE_CLUB_ADMIN" : "ROLE_STUDENT");
+  localStorage.setItem("signupStatus", isOperatorSignup() ? "OPERATOR_COMPLETED" : "STUDENT_COMPLETED");
+
+  completeTitle.textContent = isOperatorSignup()
+    ? "운영자 계정이 다시 활성화되었습니다!"
+    : "계정이 다시 활성화되었습니다!";
+  completeMessage.textContent = "백엔드에 남아 있던 기존 계정을 다시 사용할 수 있게 처리했습니다. 로그인해서 이용해주세요.";
+
+  showStep(5);
+  return true;
 }
 
 function checkRequiredTerms() {
@@ -144,7 +300,7 @@ async function validateCurrentStep() {
     return false;
   }
 
-  if (currentStep === 4 && selectedRole === "ROLE_CLUB_ADMIN_PENDING") {
+  if (currentStep === 4 && isOperatorSignup()) {
     const { operatorClubName, operatorRole } = getSignupValues();
 
     if (!operatorClubName || !operatorRole) {
@@ -187,10 +343,10 @@ async function completeSignup() {
     name: values.name,
     studentId: values.studentId,
     department: values.department,
-    memberType: selectedRole === "ROLE_CLUB_ADMIN_PENDING" ? "CLUB_ADMIN" : "STUDENT",
+    memberType: isOperatorSignup() ? "CLUB_ADMIN" : "STUDENT",
   };
 
-  if (selectedRole === "ROLE_CLUB_ADMIN_PENDING") {
+  if (isOperatorSignup()) {
     let clubId = findOperatorClubId();
 
     if (!clubId) {
@@ -202,6 +358,8 @@ async function completeSignup() {
       alert("운영자로 신청할 동아리를 찾을 수 없습니다. 동아리 이름 대신 clubId 숫자를 입력해보세요.");
       return;
     }
+
+    selectedOperatorClubId = clubId;
 
     body.clubAdminRequest = {
       clubId,
@@ -229,12 +387,28 @@ async function completeSignup() {
 
     localStorage.setItem("signupRole", selectedRole);
 
-    if (selectedRole === "ROLE_CLUB_ADMIN_PENDING") {
-      localStorage.setItem("signupStatus", "OPERATOR_PENDING");
-      operatorPendingNotice.style.display = "block";
+    if (typeof saveSignupAccountForEmail === "function") {
+      saveSignupAccountForEmail(values.email, buildRegisteredUser(result.data || {}), isOperatorSignup() ? "ROLE_CLUB_ADMIN" : "ROLE_STUDENT");
+    }
 
-      completeTitle.textContent = "회원가입이 완료되었습니다!";
-      completeMessage.textContent = "운영자 권한은 학교 승인 후 사용할 수 있습니다.";
+    if (isOperatorSignup()) {
+      const savedUser = getSignupValues();
+      const operatorUser = buildRegisteredUser(result.data || {});
+      operatorUser.operatorRequest = {
+        ...(operatorUser.operatorRequest || {}),
+        clubId: selectedOperatorClubId,
+        clubType: savedUser.operatorClubType,
+        clubName: savedUser.operatorClubName,
+        clubRole: savedUser.operatorRole,
+      };
+      saveStoredOperatorUser(operatorUser);
+      saveOperatorRoleOverride(operatorUser);
+
+      localStorage.setItem("signupStatus", "OPERATOR_COMPLETED");
+      operatorPendingNotice.style.display = "none";
+
+      completeTitle.textContent = "운영자 회원가입이 완료되었습니다!";
+      completeMessage.textContent = "로그인 후 마이페이지에서 운영진 메뉴를 바로 사용할 수 있습니다.";
     } else {
       localStorage.setItem("signupStatus", "STUDENT_COMPLETED");
       operatorPendingNotice.style.display = "none";
@@ -246,6 +420,15 @@ async function completeSignup() {
     showStep(5);
   } catch (error) {
     console.error(error);
+
+    const completeTitle = document.querySelector("#completeTitle");
+    const completeMessage = document.querySelector("#completeMessage");
+
+    if (isDuplicateEmailError(error)) {
+      const handled = await restoreDeletedAccountSignup(values, completeTitle, completeMessage);
+      if (handled) return;
+    }
+
     alert(error.message || "회원가입에 실패했습니다.");
   } finally {
     if (completeButton) {
@@ -278,8 +461,8 @@ document.querySelectorAll("[data-role-select]").forEach((button) => {
       item.classList.toggle("is-selected", item.dataset.roleSelect === selectedRole);
     });
 
-    operatorBox.classList.toggle("is-open", selectedRole === "ROLE_CLUB_ADMIN_PENDING");
-    signupCard.classList.toggle("is-operator-form", selectedRole === "ROLE_CLUB_ADMIN_PENDING");
+    operatorBox.classList.toggle("is-open", isOperatorSignup());
+    signupCard.classList.toggle("is-operator-form", isOperatorSignup());
   });
 });
 
