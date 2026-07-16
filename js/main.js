@@ -20,8 +20,8 @@ const STATUS_MAP = {
     className: "status-always",
   },
   UNKNOWN: {
-    text: "모집 정보 없음",
-    className: "status-unknown",
+    text: "상시 모집",
+    className: "status-always",
   },
 };
 
@@ -51,8 +51,17 @@ function isSaved(clubId) {
   return getSavedClubs().some((club) => String(club.id) === String(clubId));
 }
 
+function normalizeRecruitmentStatus(apiClub) {
+  if (!apiClub.recruitmentStatus || apiClub.recruitmentStatus === "UNKNOWN") {
+    return "ALWAYS";
+  }
+
+  return apiClub.recruitmentStatus;
+}
+
 function convertClubFromApi(apiClub) {
-  const recruitmentStatus = apiClub.recruitmentStatus || "UNKNOWN";
+  const recruitmentStatus = normalizeRecruitmentStatus(apiClub);
+  const statusInfo = STATUS_MAP[recruitmentStatus] || STATUS_MAP.UNKNOWN;
 
   return {
     id: String(apiClub.clubId),
@@ -61,19 +70,26 @@ function convertClubFromApi(apiClub) {
     category: apiClub.category,
     description: apiClub.shortDescription || "",
     status: recruitmentStatus,
-    statusLabel: apiClub.recruitmentStatusLabel || STATUS_MAP[recruitmentStatus]?.text || "모집 정보 없음",
+    statusLabel: statusInfo.text,
     image: apiClub.imageUrl || LOCAL_CLUB_IMAGES[apiClub.name] || "",
   };
 }
 
 function createHomeClubCard(club) {
   const statusInfo = STATUS_MAP[club.status] || STATUS_MAP.UNKNOWN;
+  const saved = isSaved(club.id);
+
   const imageHtml = club.image
     ? `<img src="${club.image}" alt="${club.name} 모집 이미지" referrerpolicy="no-referrer" onerror="this.style.display='none'" />`
     : "";
 
   return `
-    <article class="club-card" data-club-id="${club.id}" data-club-name="${club.name}" data-status="${club.status}">
+    <article class="club-card"
+      data-club-id="${club.id}"
+      data-club-name="${club.name}"
+      data-status="${club.status}"
+      data-category="${club.category || ""}"
+      data-type="${club.type || ""}">
       <div class="club-thumb">
         ${imageHtml}
       </div>
@@ -81,9 +97,9 @@ function createHomeClubCard(club) {
         <h3>${club.name}</h3>
         <p>${club.description}</p>
         <div class="club-bottom">
-          <em class="tag ${statusInfo.className}" data-status-badge>${club.statusLabel || statusInfo.text}</em>
-          <button type="button" class="bookmark-btn" aria-label="${club.name} 찜하기">
-            <img src="${isSaved(club.id) ? CHECKBOX_ON : CHECKBOX_OFF}" alt="" class="bookmark-icon" />
+          <em class="tag ${statusInfo.className}" data-status-badge>${statusInfo.text}</em>
+          <button type="button" class="bookmark-btn" aria-label="${club.name} ${saved ? "스크랩 취소" : "스크랩"}">
+            <img src="${saved ? CHECKBOX_ON : CHECKBOX_OFF}" alt="" class="bookmark-icon" />
           </button>
         </div>
       </div>
@@ -91,26 +107,38 @@ function createHomeClubCard(club) {
   `;
 }
 
+function renderClubSection(grid, clubs) {
+  if (!grid) return;
+
+  grid.innerHTML = clubs.map(createHomeClubCard).join("");
+}
+
 async function loadHomeClubsFromApi() {
-  if (typeof apiRequest !== "function") return;
+  if (typeof apiRequest !== "function") {
+    console.warn("api.js가 연결되지 않았습니다.");
+    return;
+  }
 
   try {
     const result = await apiRequest("/api/clubs");
     const clubs = (result.data || []).map(convertClubFromApi);
-    const sections = document.querySelectorAll(".club-section");
 
-    sections.forEach((section) => {
-      const title = section.querySelector(".section-title-row h2, .section-title h2")?.textContent?.trim();
+    document.querySelectorAll(".club-section").forEach((section) => {
+      const title = section
+        .querySelector(".section-title-row h2, .section-title h2")
+        ?.textContent
+        ?.trim();
+
       const grid = section.querySelector(".club-grid");
       if (!grid) return;
 
       const type = title === "일반동아리" ? "GENERAL" : "CENTRAL";
-      const limit = type === "GENERAL" ? 3 : 4;
-      const items = clubs.filter((club) => club.type === type).slice(0, limit);
 
-      if (items.length > 0) {
-        grid.innerHTML = items.map(createHomeClubCard).join("");
-      }
+      const items = clubs
+        .filter((club) => club.type === type)
+        .slice(0, 4);
+
+      renderClubSection(grid, items);
     });
   } catch (error) {
     console.warn("홈 동아리 API 조회 실패, 기존 HTML 카드 사용:", error);
@@ -118,9 +146,11 @@ async function loadHomeClubsFromApi() {
 }
 
 function getClubDataFromCard(card) {
+  if (!card) return {};
+
   const title = card.querySelector("h3")?.textContent?.trim() || card.dataset.clubName || "";
   const description = card.querySelector(".club-content p")?.textContent?.trim() || "";
-  const status = card.dataset.status || "CLOSED";
+  const status = card.dataset.status || "ALWAYS";
   const image = card.querySelector(".club-thumb img")?.getAttribute("src") || "";
 
   return {
@@ -129,6 +159,8 @@ function getClubDataFromCard(card) {
     description,
     status,
     image,
+    category: card.dataset.category || "",
+    type: card.dataset.type || "",
   };
 }
 
@@ -141,37 +173,70 @@ function updateBookmarkButtons() {
     const clubId = card.dataset.clubId;
     const clubName = card.dataset.clubName;
 
+    if (!icon || !clubId) return;
+
     if (isSaved(clubId)) {
       icon.src = CHECKBOX_ON;
       button.classList.add("is-active");
-      button.setAttribute("aria-label", `${clubName} 찜 취소`);
+      button.setAttribute("aria-label", `${clubName} 스크랩 취소`);
     } else {
       icon.src = CHECKBOX_OFF;
       button.classList.remove("is-active");
-      button.setAttribute("aria-label", `${clubName} 찜하기`);
+      button.setAttribute("aria-label", `${clubName} 스크랩`);
     }
   });
 }
 
 function bindBookmarkButtons() {
   document.querySelectorAll(".bookmark-btn").forEach((button) => {
-    button.addEventListener("click", (event) => {
+    button.onclick = async function (event) {
+      event.preventDefault();
       event.stopPropagation();
 
       const card = button.closest(".club-card");
       const club = getClubDataFromCard(card);
 
-      let savedClubs = getSavedClubs();
-
-      if (isSaved(club.id)) {
-        savedClubs = savedClubs.filter((savedClub) => String(savedClub.id) !== String(club.id));
-      } else {
-        savedClubs.push(club);
+      if (!club.id) {
+        alert("동아리 정보를 찾을 수 없습니다.");
+        return;
       }
 
-      saveClubs(savedClubs);
-      updateBookmarkButtons();
-    });
+      const token =
+        localStorage.getItem("authToken") ||
+        sessionStorage.getItem("authToken");
+
+      if (!token) {
+        alert("로그인 후 스크랩할 수 있습니다.");
+        location.href = "./login.html";
+        return;
+      }
+
+      button.disabled = true;
+
+      try {
+        await apiRequest(`/api/clubs/${club.id}/bookmarks`, {
+          method: "POST",
+        });
+
+        let savedClubs = getSavedClubs();
+
+        if (isSaved(club.id)) {
+          savedClubs = savedClubs.filter(
+            (savedClub) => String(savedClub.id) !== String(club.id)
+          );
+        } else {
+          savedClubs.push(club);
+        }
+
+        saveClubs(savedClubs);
+        updateBookmarkButtons();
+      } catch (error) {
+        console.error(error);
+        alert(error.message || "스크랩 처리에 실패했습니다.");
+      } finally {
+        button.disabled = false;
+      }
+    };
   });
 }
 
@@ -197,8 +262,12 @@ function initSearchForm() {
 
   searchForm.addEventListener("submit", (event) => {
     event.preventDefault();
+
     const keyword = searchForm.querySelector("input")?.value.trim() || "";
-    window.location.href = `./club-list.html${keyword ? `?keyword=${encodeURIComponent(keyword)}` : ""}`;
+
+    window.location.href = `./club-list.html${
+      keyword ? `?keyword=${encodeURIComponent(keyword)}` : ""
+    }`;
   });
 }
 
@@ -207,12 +276,16 @@ function renderStatusBadges() {
     const badge = card.querySelector("[data-status-badge]");
     if (!badge) return;
 
-    const status = card.dataset.status || "CLOSED";
+    let status = card.dataset.status || "ALWAYS";
+
+    if (status === "UNKNOWN") {
+      status = "ALWAYS";
+      card.dataset.status = "ALWAYS";
+    }
+
     const statusInfo = STATUS_MAP[status] || STATUS_MAP.UNKNOWN;
 
-    if (!badge.textContent.trim()) {
-      badge.textContent = statusInfo.text;
-    }
+    badge.textContent = statusInfo.text;
     badge.className = `tag ${statusInfo.className}`;
   });
 }
@@ -229,7 +302,11 @@ window.changeClubStatus = changeClubStatus;
 
 function fixHomeMoreLinks() {
   document.querySelectorAll(".club-section").forEach((section) => {
-    const title = section.querySelector(".section-title-row h2, .section-title h2")?.textContent?.trim();
+    const title = section
+      .querySelector(".section-title-row h2, .section-title h2")
+      ?.textContent
+      ?.trim();
+
     const moreLink = section.querySelector('a[href*="club-list.html"]');
 
     if (!moreLink) return;
@@ -246,26 +323,26 @@ function fixHomeMoreLinks() {
 
 function initHomeClubCardLinks() {
   document.querySelectorAll(".club-card").forEach((card) => {
-    card.addEventListener("click", (event) => {
+    card.onclick = function (event) {
       if (event.target.closest(".bookmark-btn")) return;
 
       const clubId = card.dataset.clubId;
       if (!clubId) return;
 
       window.location.href = `./club-detail.html?clubId=${clubId}`;
-    });
+    };
 
     card.setAttribute("tabindex", "0");
     card.setAttribute("role", "link");
 
-    card.addEventListener("keydown", (event) => {
-      if (event.key === "Enter") {
-        const clubId = card.dataset.clubId;
-        if (!clubId) return;
+    card.onkeydown = function (event) {
+      if (event.key !== "Enter") return;
 
-        window.location.href = `./club-detail.html?clubId=${clubId}`;
-      }
-    });
+      const clubId = card.dataset.clubId;
+      if (!clubId) return;
+
+      window.location.href = `./club-detail.html?clubId=${clubId}`;
+    };
   });
 }
 

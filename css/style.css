@@ -8279,3 +8279,664 @@ body.protected-page-locked .login-required-overlay {
 .club-bottom .tag.status-unknown {
   background: #b8b8b8;
 }
+
+.department-select {
+  width: 100%;
+  height: 48px;
+  padding: 0 14px;
+  border: 1px solid #d8d8d8;
+  border-radius: 10px;
+  background-color: #fff;
+  color: #111;
+  font-size: 15px;
+  font-family: inherit;
+  outline: none;
+  cursor: pointer;
+}
+
+.department-select:focus {
+  border-color: #f4b400;
+  box-shadow: 0 0 0 3px rgba(244, 180, 0, 0.15);
+}
+
+/* 홈 + 동아리 탐색 카드 하단 정렬 통합 수정 */
+.club-card {
+  position: relative !important;
+}
+
+/* 카드 안 설명이 모집 뱃지/스크랩 아이콘을 침범하지 않게 */
+.club-card .club-content {
+  position: relative !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+  padding-bottom: 54px !important;
+}
+
+/* 설명이 길면 한 줄 말줄임 */
+.club-card .club-content p {
+  display: block !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+/* 홈 카드 하단 */
+.club-card .club-content .club-bottom {
+  position: absolute !important;
+  left: 27px !important;
+  right: 27px !important;
+  bottom: 14px !important;
+  margin-top: 0 !important;
+  z-index: 20 !important;
+}
+
+/* 탐색 페이지 카드 하단 */
+.explore-club-card > .club-bottom,
+.explore-club-card > .explore-club-bottom {
+  position: absolute !important;
+  left: 24px !important;
+  right: 24px !important;
+  bottom: 20px !important;
+  margin-top: 0 !important;
+  z-index: 30 !important;
+}
+
+/* 모집 상태 뱃지 */
+.club-card .tag,
+.explore-club-card .tag {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-width: 72px !important;
+  height: 27px !important;
+  padding: 0 13px !important;
+  border-radius: 8px !important;
+  font-size: 11px !important;
+  font-weight: 800 !important;
+  line-height: 1 !important;
+  color: #fff !important;
+  white-space: nowrap !important;
+  border: none !important;
+  transform: none !important;
+}
+
+/* 스크랩 버튼 */
+.club-card .bookmark-btn,
+.explore-club-card .bookmark-btn {
+  position: relative !important;
+  z-index: 50 !important;
+  width: 28px !important;
+  height: 30px !important;
+  pointer-events: auto !important;
+}
+
+/* 모집 상태 색상 */
+.club-card .tag.status-open,
+.explore-club-card .tag.status-open {
+  background: #79bea3 !important;
+}
+
+.club-card .tag.status-closed,
+.explore-club-card .tag.status-closed {
+  background: #7d8dbb !important;
+}
+
+.club-card .tag.status-always,
+.explore-club-card .tag.status-always {
+  background: #f8d489 !important;
+}
+
+.club-card .tag.status-unknown,
+.explore-club-card .tag.status-unknown {
+  background: #b8b8b8 !important;
+}
+
+/* 동아리 탐색 페이지 카드 레이아웃 수정 */
+.explore-club-card {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: flex-start !important;
+  height: 260px !important;
+  padding: 24px 24px 18px !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+  position: relative !important;
+}
+
+/* 카드 클릭 영역 */
+.explore-club-card .explore-card-link {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 !important;
+  min-height: 0 !important;
+  text-decoration: none !important;
+  color: inherit !important;
+}
+
+/* 이미지 영역 */
+.explore-club-card .club-thumb {
+  width: 100% !important;
+  height: 130px !important;
+  flex: 0 0 130px !important;
+  margin-bottom: 14px !important;
+  overflow: hidden !important;
+}
+
+.explore-club-card .club-thumb img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+}
+
+/* 텍스트 영역 */
+.explore-club-card .club-content {
+  padding: 0 !important;
+  margin: 0 !important;
+  flex: 1 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+
+.explore-club-card .club-content h3 {
+  margin: 0 0 5px !important;
+  font-size: 24px !important;
+  line-height: 1.15 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.explore-club-card .club-content p {
+  margin: 0 !important;
+  font-size: 13px !important;
+  line-height: 1.35 !important;
+  max-width: 100% !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+/* 모집 뱃지 + 스크랩 버튼 */
+.explore-club-card .explore-club-bottom,
+.explore-club-card .club-bottom {
+  position: static !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  margin-top: 10px !important;
+  padding: 0 !important;
+  width: 100% !important;
+  z-index: 10 !important;
+}
+
+/* 모집 상태 뱃지 */
+.explore-club-card .tag {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-width: 70px !important;
+  height: 26px !important;
+  padding: 0 12px !important;
+  border-radius: 7px !important;
+  font-size: 11px !important;
+  font-weight: 800 !important;
+  line-height: 1 !important;
+  color: #fff !important;
+  white-space: nowrap !important;
+}
+
+/* 스크랩 아이콘 */
+.explore-club-card .bookmark-btn {
+  width: 28px !important;
+  height: 30px !important;
+  flex-shrink: 0 !important;
+  position: relative !important;
+  z-index: 20 !important;
+}
+
+.explore-club-card .bookmark-icon {
+  width: 17px !important;
+  height: 22px !important;
+}
+
+/* 홈 + 동아리 탐색 카드 이미지 비율 유지 */
+.club-card .club-thumb,
+.explore-club-card .club-thumb {
+  width: 100% !important;
+  height: 150px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  overflow: hidden !important;
+  background: #fff !important;
+  border-radius: 0 !important;
+}
+
+/* 이미지 원본 비율 유지 */
+.club-card .club-thumb img,
+.explore-club-card .club-thumb img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+  object-position: center !important;
+  display: block !important;
+}
+
+/* 홈 카드와 탐색 카드 이미지 크기 통일 */
+.club-card,
+.explore-club-card {
+  overflow: hidden !important;
+}
+
+/* 이미지 없는 카드도 같은 높이 유지 */
+.club-card .club-thumb:empty,
+.explore-club-card .club-thumb:empty {
+  height: 150px !important;
+}
+
+/* 탐색 페이지에서 텍스트가 이미지랑 너무 붙지 않게 */
+.explore-club-card .club-content {
+  margin-top: 14px !important;
+}
+
+/* 홈 카드도 동일하게 */
+.club-card .club-content {
+  margin-top: 14px !important;
+}
+
+@media (min-width: 901px) {
+  .club-grid,
+  .explore-grid {
+    display: grid !important;
+    grid-template-columns: repeat(4, 296px) !important;
+    gap: 31px !important;
+    align-items: start !important;
+  }
+
+  .club-card,
+  .club-card.explore-club-card {
+    width: 296px !important;
+    height: 312px !important;
+    min-height: 312px !important;
+    max-height: 312px !important;
+    position: relative !important;
+    display: block !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    border: 1px solid rgba(0, 0, 0, 0.25) !important;
+    border-radius: 16px !important;
+    background: #ffffff !important;
+  }
+
+  .club-card .explore-card-link {
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+    color: inherit !important;
+    text-decoration: none !important;
+  }
+
+  .club-card .club-thumb,
+  .club-card.explore-club-card .club-thumb {
+    position: absolute !important;
+    left: 33px !important;
+    top: 12px !important;
+    width: 231px !important;
+    height: 178px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    overflow: hidden !important;
+    background: #ffffff !important;
+    border-radius: 0 !important;
+  }
+
+  .club-card .club-thumb img,
+  .club-card.explore-club-card .club-thumb img {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: none !important;
+    max-height: none !important;
+    display: block !important;
+    object-fit: cover !important;
+    object-position: center !important;
+  }
+
+  .club-card .club-content,
+  .club-card.explore-club-card .club-content {
+    position: absolute !important;
+    left: 19px !important;
+    right: 19px !important;
+    top: 200px !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    box-sizing: border-box !important;
+  }
+
+  .club-card .club-content h3,
+  .club-card.explore-club-card .club-content h3 {
+    margin: 0 !important;
+    padding: 0 !important;
+    font-size: 30px !important;
+    line-height: 1.15 !important;
+    font-weight: 800 !important;
+    letter-spacing: -1px !important;
+    color: #072c6c !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  .club-card .club-content p,
+  .club-card.explore-club-card .club-content p {
+    margin: 6px 0 0 !important;
+    padding: 0 !important;
+    font-size: 15px !important;
+    line-height: 1.2 !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.3px !important;
+    color: #072c6c !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  /* 홈 카드: club-bottom이 club-content 안에 있음 */
+  .club-card .club-content > .club-bottom {
+    position: absolute !important;
+    left: 0 !important;
+    right: 0 !important;
+    top: 74px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    z-index: 20 !important;
+  }
+
+  /* 탐색 카드: club-bottom이 article 바로 아래에 있음 */
+  .club-card.explore-club-card > .club-bottom,
+  .club-card.explore-club-card > .explore-club-bottom {
+    position: absolute !important;
+    left: 19px !important;
+    right: 19px !important;
+    bottom: 13px !important;
+    top: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    z-index: 20 !important;
+  }
+
+  .club-card .tag,
+  .club-card.explore-club-card .tag {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-width: 68px !important;
+    height: 26px !important;
+    padding: 0 12px !important;
+    border-radius: 8px !important;
+    border: none !important;
+    font-size: 12px !important;
+    font-weight: 800 !important;
+    line-height: 1 !important;
+    color: #ffffff !important;
+    white-space: nowrap !important;
+    letter-spacing: -0.3px !important;
+  }
+
+  .club-card .tag.status-open,
+  .club-card.explore-club-card .tag.status-open {
+    background: #79bea3 !important;
+  }
+
+  .club-card .tag.status-closed,
+  .club-card.explore-club-card .tag.status-closed {
+    background: #6c7aa4 !important;
+  }
+
+  .club-card .tag.status-always,
+  .club-card.explore-club-card .tag.status-always {
+    background: #f8d489 !important;
+  }
+
+  .club-card .tag.status-unknown,
+  .club-card.explore-club-card .tag.status-unknown {
+    background: #b8b8b8 !important;
+  }
+
+  .club-card .bookmark-btn,
+  .club-card.explore-club-card .bookmark-btn {
+    width: 28px !important;
+    height: 30px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    position: relative !important;
+    z-index: 50 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: transparent !important;
+    border: none !important;
+    cursor: pointer !important;
+  }
+
+  .club-card .bookmark-icon,
+  .club-card.explore-club-card .bookmark-icon {
+    width: 14px !important;
+    height: 18px !important;
+    display: block !important;
+  }
+}
+
+.club-card .tag.status-open,
+.explore-club-card .tag.status-open {
+  background: #79bea3 !important;
+}
+
+.club-card .tag.status-closed,
+.explore-club-card .tag.status-closed {
+  background: #6c7aa4 !important;
+}
+
+.club-card .tag.status-always,
+.explore-club-card .tag.status-always {
+  background: #f8d489 !important;
+}
+
+/* =========================================================
+   최종 ClubCard 통일 CSS
+   홈 / 동아리 탐색 카드 동일 비율 적용
+   Figma 기준: 카드 296x312, 이미지 231x178
+========================================================= */
+
+@media (min-width: 901px) {
+  .club-card,
+  .club-card.explore-club-card {
+    width: 296px !important;
+    height: 312px !important;
+    min-width: 296px !important;
+    min-height: 312px !important;
+    max-width: 296px !important;
+    max-height: 312px !important;
+    position: relative !important;
+    display: block !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+    border: 1px solid rgba(0, 0, 0, 0.25) !important;
+    border-radius: 16px !important;
+    background: #fff !important;
+  }
+
+  .club-card a,
+  .club-card .explore-card-link {
+    position: static !important;
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+    text-decoration: none !important;
+    color: inherit !important;
+  }
+
+  .club-card .club-thumb,
+  .club-card.explore-club-card .club-thumb {
+    position: absolute !important;
+    left: 33px !important;
+    top: 12px !important;
+    width: 231px !important;
+    height: 178px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    background: #fff !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  .club-card .club-thumb img,
+  .club-card.explore-club-card .club-thumb img {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: none !important;
+    max-height: none !important;
+    object-fit: cover !important;
+    object-position: center !important;
+    display: block !important;
+  }
+
+  .club-card .club-content,
+  .club-card.explore-club-card .club-content {
+    position: static !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  .club-card .club-content h3,
+  .club-card.explore-club-card .club-content h3 {
+    position: absolute !important;
+    left: 19px !important;
+    right: 19px !important;
+    top: 200px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    font-size: 30px !important;
+    line-height: 1.15 !important;
+    font-weight: 800 !important;
+    color: #072c6c !important;
+    letter-spacing: -1px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  .club-card .club-content p,
+  .club-card.explore-club-card .club-content p {
+    position: absolute !important;
+    left: 19px !important;
+    right: 19px !important;
+    top: 241px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    font-size: 15px !important;
+    line-height: 1.2 !important;
+    font-weight: 700 !important;
+    color: #072c6c !important;
+    letter-spacing: -0.3px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  .club-card .club-bottom,
+  .club-card .club-content .club-bottom,
+  .club-card.explore-club-card .club-bottom,
+  .club-card.explore-club-card .explore-club-bottom {
+    position: absolute !important;
+    left: 19px !important;
+    right: 19px !important;
+    bottom: 13px !important;
+    top: auto !important;
+    width: auto !important;
+    height: 26px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    z-index: 30 !important;
+    pointer-events: auto !important;
+  }
+
+  .club-card .tag,
+  .club-card.explore-club-card .tag {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-width: 68px !important;
+    height: 26px !important;
+    padding: 0 12px !important;
+    border-radius: 8px !important;
+    border: none !important;
+    font-size: 12px !important;
+    font-weight: 800 !important;
+    line-height: 1 !important;
+    color: #fff !important;
+    white-space: nowrap !important;
+    letter-spacing: -0.3px !important;
+  }
+
+  .club-card .tag.status-open,
+  .club-card.explore-club-card .tag.status-open {
+    background: #79bea3 !important;
+  }
+
+  .club-card .tag.status-closed,
+  .club-card.explore-club-card .tag.status-closed {
+    background: #6c7aa4 !important;
+  }
+
+  .club-card .tag.status-always,
+  .club-card.explore-club-card .tag.status-always {
+    background: #f8d489 !important;
+  }
+
+  .club-card .bookmark-btn,
+  .club-card.explore-club-card .bookmark-btn {
+    position: relative !important;
+    right: auto !important;
+    bottom: auto !important;
+    width: 28px !important;
+    height: 26px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    background: transparent !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-shrink: 0 !important;
+    z-index: 50 !important;
+    cursor: pointer !important;
+  }
+
+  .club-card .bookmark-icon,
+  .club-card.explore-club-card .bookmark-icon {
+    width: 14px !important;
+    height: 18px !important;
+    display: block !important;
+  }
+}

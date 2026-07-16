@@ -8,7 +8,7 @@ const STATUS_MAP = {
     className: "status-open",
   },
   CLOSED: {
-    text: "모집 마감",
+    text: "모집마감",
     className: "status-closed",
   },
   ALWAYS: {
@@ -20,8 +20,8 @@ const STATUS_MAP = {
     className: "status-always",
   },
   UNKNOWN: {
-    text: "모집 정보 없음",
-    className: "status-unknown",
+    text: "상시 모집",
+    className: "status-always",
   },
 };
 
@@ -99,7 +99,10 @@ function initTypeFromQuery() {
 }
 
 function convertClubFromApi(apiClub) {
-  const recruitmentStatus = apiClub.recruitmentStatus || "UNKNOWN";
+  const recruitmentStatus =
+  apiClub.recruitmentStatus === "UNKNOWN" || !apiClub.recruitmentStatus
+    ? "ALWAYS"
+    : apiClub.recruitmentStatus;
 
   return {
     id: String(apiClub.clubId),
@@ -196,7 +199,7 @@ function createClubCard(club) {
         </div>
       </a>
       <div class="club-bottom explore-club-bottom">
-        <em class="tag ${statusInfo.className}">${club.recruitmentStatusLabel || statusInfo.text}</em>
+        <em class="tag ${statusInfo.className}">${statusInfo.text}</em>
         <button type="button" class="bookmark-btn" aria-label="${club.name} ${saved ? "스크랩 취소" : "스크랩"}">
           <img src="${saved ? CHECKBOX_ON : CHECKBOX_OFF}" alt="" class="bookmark-icon" />
         </button>
@@ -230,29 +233,63 @@ function renderClubs() {
 
 function bindBookmarkButtons() {
   document.querySelectorAll(".bookmark-btn").forEach((button) => {
-    button.addEventListener("click", () => {
-      const card = button.closest(".club-card");
-      const clubId = card.dataset.clubId;
-      const club = clubs.find((item) => String(item.id) === String(clubId));
-      let savedClubs = getSavedClubs();
+    button.onclick = async function (event) {
+      event.preventDefault();
+      event.stopPropagation();
 
-      if (isSaved(clubId)) {
-        savedClubs = savedClubs.filter((savedClub) => String(savedClub.id) !== String(clubId));
-      } else if (club) {
-        savedClubs.push({
-          id: club.id,
-          name: club.name,
-          description: club.description,
-          status: club.status,
-          image: club.image,
-          category: club.category,
-          type: club.type,
-        });
+      const card = button.closest(".club-card");
+      const clubId = card?.dataset.clubId;
+      const club = clubs.find((item) => String(item.id) === String(clubId));
+
+      if (!clubId || !club) {
+        alert("동아리 정보를 찾을 수 없습니다.");
+        return;
       }
 
-      saveClubs(savedClubs);
-      renderClubs();
-    });
+      const token =
+        localStorage.getItem("authToken") ||
+        sessionStorage.getItem("authToken");
+
+      if (!token) {
+        alert("로그인 후 스크랩할 수 있습니다.");
+        location.href = "./login.html";
+        return;
+      }
+
+      button.disabled = true;
+
+      try {
+        await apiRequest(`/api/clubs/${clubId}/bookmarks`, {
+          method: "POST",
+        });
+
+        let savedClubs = getSavedClubs();
+
+        if (isSaved(clubId)) {
+          savedClubs = savedClubs.filter(
+            (savedClub) => String(savedClub.id) !== String(clubId)
+          );
+        } else {
+          savedClubs.push({
+            id: club.id,
+            name: club.name,
+            description: club.description,
+            status: club.status,
+            image: club.image,
+            category: club.category,
+            type: club.type,
+          });
+        }
+
+        saveClubs(savedClubs);
+        renderClubs();
+      } catch (error) {
+        console.error(error);
+        alert(error.message || "스크랩 처리에 실패했습니다.");
+      } finally {
+        button.disabled = false;
+      }
+    };
   });
 }
 
