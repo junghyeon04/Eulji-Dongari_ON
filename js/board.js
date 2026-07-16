@@ -90,29 +90,38 @@ function saveCreatedPostLocally(apiResult, payload) {
   const user = getStoredUser();
   const now = new Date().toISOString();
   const clubId = String(boardClubSelect.value);
-  const postId = String(data.postId || data.id || `local-${Date.now()}`);
+  const postId = String(data.postId || data.postid || data.id || data.post?.postId || `local-${Date.now()}`);
+  const userId = String(user.userId || user.userid || user.id || "");
+  const userEmail = String(user.email || "").toLowerCase();
+  const userName = String(user.name || "나");
 
   const localPost = {
+    ...data,
     localStorageId: `${clubId}-${postId}`,
     postId,
     id: postId,
     clubId,
-    clubName: getSelectedClubName(),
-    category: payload.category,
-    status: payload.status,
-    title: payload.title,
-    content: payload.content,
-    attachmentUrls: payload.attachmentUrls || [],
-    authorId: user.userId || user.userid || user.id || "",
-    userId: user.userId || user.userid || user.id || "",
-    userid: user.userid || user.userId || user.id || "",
-    authorEmail: user.email || "",
-    email: user.email || "",
-    authorName: user.name || "나",
+    clubName: data.clubName || getSelectedClubName(),
+    category: data.category || payload.category,
+    status: data.status || payload.status,
+    title: data.title || payload.title,
+    content: data.content || payload.content,
+    attachmentUrls: data.attachmentUrls || payload.attachmentUrls || [],
+    authorId: data.authorId || data.userId || data.userid || data.writerId || userId,
+    userId: data.userId || data.authorId || userId,
+    userid: data.userid || data.userId || userId,
+    writerId: data.writerId || userId,
+    authorEmail: data.authorEmail || data.email || data.writerEmail || userEmail,
+    writerEmail: data.writerEmail || data.authorEmail || userEmail,
+    email: data.email || userEmail,
+    authorName: data.authorName || data.writerName || data.memberName || userName,
+    writerName: data.writerName || data.authorName || userName,
     viewCount: data.viewCount ?? 0,
     createdAt: data.createdAt || now,
     updatedAt: data.updatedAt || now,
     source: "board-local-cache",
+    createdByCurrentUser: true,
+    isMine: true,
   };
 
   const posts = getLocalBoardPosts().filter(
@@ -122,7 +131,6 @@ function saveCreatedPostLocally(apiResult, payload) {
   posts.unshift(localPost);
   saveLocalBoardPosts(posts);
 
-  // 마이페이지에서 바로 읽을 수 있도록 내 게시물 전용 캐시에도 같이 저장한다.
   const myPosts = safeJsonParse(localStorage.getItem("mypageMyPosts"), []) || [];
   const filteredMyPosts = myPosts.filter(
     (post) => !(String(post.clubId) === clubId && String(getPostId(post)) === postId)
@@ -131,7 +139,14 @@ function saveCreatedPostLocally(apiResult, payload) {
   filteredMyPosts.unshift(localPost);
   localStorage.setItem("mypageMyPosts", JSON.stringify(filteredMyPosts));
   localStorage.setItem("lastCreatedBoardPost", JSON.stringify(localPost));
+
+  const createdIds = safeJsonParse(localStorage.getItem("myCreatedBoardPostIds"), []) || [];
+  const nextIds = createdIds.filter((item) => !(String(item.clubId) === clubId && String(item.postId) === postId));
+  nextIds.unshift({ clubId, postId, title: localPost.title, createdAt: localPost.createdAt });
+  localStorage.setItem("myCreatedBoardPostIds", JSON.stringify(nextIds));
+
   sessionStorage.setItem("mypagePostsDirty", "true");
+  return localPost;
 }
 
 function findLocalPost(clubId, postId) {
