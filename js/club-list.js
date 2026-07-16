@@ -133,6 +133,14 @@ async function loadClubsFromApi() {
 
     clubs = result.data.map(convertClubFromApi);
 
+    try {
+      if (typeof syncBookmarksFromServer === "function") {
+        await syncBookmarksFromServer();
+      }
+    } catch (error) {
+      console.warn("동아리 탐색 스크랩 동기화 실패:", error);
+    }
+
     renderClubs();
   } catch (error) {
     console.error(error);
@@ -256,32 +264,36 @@ function bindBookmarkButtons() {
         return;
       }
 
+      const shouldSave = !isSaved(clubId);
       button.disabled = true;
 
       try {
-        await apiRequest(`/api/clubs/${clubId}/bookmarks`, {
-          method: "POST",
-        });
-
-        let savedClubs = getSavedClubs();
-
-        if (isSaved(clubId)) {
-          savedClubs = savedClubs.filter(
-            (savedClub) => String(savedClub.id) !== String(clubId)
-          );
+        if (typeof setBookmarkOnServer === "function") {
+          await setBookmarkOnServer(club, shouldSave);
         } else {
-          savedClubs.push({
-            id: club.id,
-            name: club.name,
-            description: club.description,
-            status: club.status,
-            image: club.image,
-            category: club.category,
-            type: club.type,
+          await apiRequest(`/api/clubs/${clubId}/bookmarks`, {
+            method: shouldSave ? "POST" : "DELETE",
           });
+
+          let savedClubs = getSavedClubs();
+          if (shouldSave) {
+            savedClubs.push({
+              id: club.id,
+              name: club.name,
+              description: club.description,
+              status: club.status,
+              image: club.image,
+              category: club.category,
+              type: club.type,
+            });
+          } else {
+            savedClubs = savedClubs.filter(
+              (savedClub) => String(savedClub.id) !== String(clubId)
+            );
+          }
+          saveClubs(savedClubs);
         }
 
-        saveClubs(savedClubs);
         renderClubs();
       } catch (error) {
         console.error(error);

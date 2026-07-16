@@ -31,7 +31,7 @@
             <button type="button" data-tab="clubs">내 동아리</button>
             <button type="button" data-tab="scraps">스크랩</button>
             <button type="button" data-tab="applications">지원 내역</button>
-            <button type="button" data-tab="posts">내 게시글</button>
+            <button type="button" data-tab="posts">내 게시물</button>
             <button type="button" data-tab="settings">설정</button>
           </nav>
         </section>
@@ -42,6 +42,8 @@
             <button type="button" data-tab="operator-applications">지원자 관리</button>
             <button type="button" data-tab="operator-club-info">동아리 정보 수정</button>
             <button type="button" data-tab="operator-board">게시판 관리</button>
+            <button type="button" data-tab="operator-activity-records">활동 기록</button>
+            <button type="button" data-tab="operator-notifications">알림</button>
             <button type="button" data-tab="operator-members">멤버 관리</button>
           </nav>
         </section>
@@ -79,7 +81,7 @@
           <section class="mypage-card content-section notification-section">
             <div class="section-head">
               <h2>최근 알림</h2>
-              <button type="button" class="more-link">전체보기 ›</button>
+              <a href="./notifications.html" class="more-link">전체보기 ›</a>
             </div>
             <div class="notification-list" id="notificationList"></div>
           </section>
@@ -129,7 +131,7 @@
               </div>
               <div>
                 <dt>이메일 인증</dt>
-                <dd class="muted-value">인증완료</dd>
+                <dd class="muted-value" id="emailVerificationStatus">인증완료</dd>
               </div>
               <div>
                 <dt>탈퇴하기</dt>
@@ -164,24 +166,24 @@
         </div>
 
         <div class="dynamic-panel" data-panel="applications">
-          <section class="mypage-card content-section">
+          <section class="mypage-card content-section mypage-api-section">
             <div class="section-head">
               <h2>지원 내역</h2>
+              <button type="button" class="more-link" id="refreshApplicationsBtn">새로고침</button>
             </div>
-            <div class="dynamic-empty">
-              지원 내역은 나중에 <strong>GET /api/users/me/applications</strong>로 연결하면 돼요.
-            </div>
+            <div class="mypage-api-summary" id="myApplicationsSummary">지원 내역을 불러오는 중입니다.</div>
+            <div class="mypage-api-list" id="myApplicationsList"></div>
           </section>
         </div>
 
         <div class="dynamic-panel" data-panel="posts">
-          <section class="mypage-card content-section">
+          <section class="mypage-card content-section mypage-api-section">
             <div class="section-head">
-              <h2>내 게시글</h2>
+              <h2>내 게시물</h2>
+              <button type="button" class="more-link" id="refreshMyPostsBtn">새로고침</button>
             </div>
-            <div class="dynamic-empty">
-              내가 쓴 게시글은 게시글 API가 정해지면 연결할 수 있어요.
-            </div>
+            <div class="mypage-api-summary" id="myPostsSummary">내가 쓴 게시물을 불러오는 중입니다.</div>
+            <div class="mypage-api-list" id="myPostsList"></div>
           </section>
         </div>
 
@@ -293,31 +295,12 @@
 
             <section class="mypage-card operator-mini-section recent-post-section">
               <div class="section-head">
-                <h2>최근 게시글</h2>
+                <h2>최근 게시물</h2>
                 <a href="./board.html" class="operator-write-btn">글쓰기</a>
               </div>
 
-              <div class="operator-post-list">
-                <article>
-                  <span>공지</span>
-                  <strong>2026년 2학기 아기사자 모집</strong>
-                  <em>2026.07.08</em>
-                </article>
-                <article>
-                  <span>질문</span>
-                  <strong>비전공자도 지원 가능한가요?</strong>
-                  <em>2026.07.01</em>
-                </article>
-                <article>
-                  <span>질문</span>
-                  <strong>스터디는 온라인으로 참여 가능할까요?</strong>
-                  <em>2026.06.22</em>
-                </article>
-                <article>
-                  <span>공지</span>
-                  <strong>해커톤 참가 팀 모집 안내</strong>
-                  <em>2026.06.01</em>
-                </article>
+              <div class="operator-post-list" id="operatorRecentPostList">
+                <div class="mypage-empty-line">운영 동아리의 게시물을 불러오는 중입니다.</div>
               </div>
 
               <a href="./board.html" class="operator-board-link">게시판 보러가기</a>
@@ -327,7 +310,7 @@
           <section class="mypage-card operator-log-section">
             <div class="section-head">
               <h2>최근 활동</h2>
-              <button type="button" class="more-link">전체보기 ›</button>
+              <a href="./activity-records.html" class="more-link">전체보기 ›</a>
             </div>
 
             <div class="operator-log-list">
@@ -341,7 +324,7 @@
           <section class="mypage-card operator-notification-section">
             <div class="section-head">
               <h2>최근 알림</h2>
-              <button type="button" class="more-link">전체보기 ›</button>
+              <a href="./notifications.html" class="more-link">전체보기 ›</a>
             </div>
 
             <div class="operator-notice-list">
@@ -389,7 +372,9 @@
             <div class="operator-manage-box">
               <h3 id="operatorClubName">운영 동아리</h3>
               <p id="operatorClubStatus">학교 승인 후 동아리 정보 수정 기능을 사용할 수 있습니다.</p>
-              <button type="button">동아리 정보 수정</button>
+              <div class="operator-manage-actions">
+                <a href="./operator-club-edit.html" class="operator-quick-link">동아리 정보 수정 열기</a>
+              </div>
             </div>
           </section>
         </div>
@@ -400,11 +385,41 @@
               <h2>게시판 관리</h2>
             </div>
             <div class="operator-manage-box">
-              <h3>게시글 관리</h3>
-              <p>게시판 API와 연결되어 동아리별 게시글 목록 조회, 작성, 상세 조회와 조회수 확인을 할 수 있습니다.</p>
+              <h3>게시물 관리</h3>
+              <p>게시판 API와 연결되어 동아리별 게시물 목록 조회, 작성, 상세 조회와 조회수 확인을 할 수 있습니다.</p>
               <div class="operator-manage-actions">
                 <a href="./board.html" class="operator-quick-link">게시판 관리 열기</a>
-                <a href="./board.html" class="operator-quick-link secondary">게시글 작성</a>
+                <a href="./board.html" class="operator-quick-link secondary">게시물 작성</a>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <div class="dynamic-panel" data-panel="operator-activity-records">
+          <section class="mypage-card content-section operator-manage-section">
+            <div class="section-head">
+              <h2>활동 기록</h2>
+            </div>
+            <div class="operator-manage-box">
+              <h3>활동 기록 관리</h3>
+              <p>활동 기록 목록/상세 조회, 작성, 수정, 삭제, 이미지 URL 관리를 할 수 있습니다.</p>
+              <div class="operator-manage-actions">
+                <a href="./activity-records.html" class="operator-quick-link">활동 기록 관리 열기</a>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <div class="dynamic-panel" data-panel="operator-notifications">
+          <section class="mypage-card content-section operator-manage-section">
+            <div class="section-head">
+              <h2>알림</h2>
+            </div>
+            <div class="operator-manage-box">
+              <h3>내 알림 목록</h3>
+              <p>내 알림 목록을 확인하고 읽음 처리할 수 있습니다.</p>
+              <div class="operator-manage-actions">
+                <a href="./notifications.html" class="operator-quick-link">알림 목록 열기</a>
               </div>
             </div>
           </section>

@@ -10,6 +10,7 @@ if (!isLoggedIn()) {
 ========================================================= */
 
 const BOOKMARK_STORAGE_KEY = "bookmarkedClubs";
+const BOARD_POST_STORAGE_KEY = "clubBoardPosts";
 
 const mypageState = {
   user: {
@@ -20,10 +21,15 @@ const mypageState = {
     joinDate: "",
   },
   joinedClubs: [],
+  operatorClubs: [],
+  applications: [],
+  posts: [],
+  postsTotal: 0,
+  operatorRecentPosts: [],
   activity: [
     {
       key: "posts",
-      title: "내가 쓴 게시글",
+      title: "내가 쓴 게시물",
       count: 0,
       icon: "pen",
     },
@@ -143,6 +149,245 @@ function saveClubs(clubs) {
   localStorage.setItem(BOOKMARK_STORAGE_KEY, JSON.stringify(clubs));
 }
 
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function getResponseData(result, fallback = []) {
+  return result?.data ?? result ?? fallback;
+}
+
+function getPagedContent(result) {
+  const data = getResponseData(result, {});
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data.content)) return data.content;
+  return [];
+}
+
+function getPagedTotal(result, fallbackLength = 0) {
+  const data = getResponseData(result, {});
+  return Number(data.totalElements ?? data.totalCount ?? fallbackLength) || fallbackLength;
+}
+
+function formatDate(value) {
+  if (!value) return "-";
+  const text = String(value);
+  return text.includes("T") ? text.split("T")[0] : text.split(" ")[0];
+}
+
+function getApplicationStatusLabel(status) {
+  const labels = {
+    PENDING: "대기",
+    APPROVED: "승인",
+    REJECTED: "거절",
+    CANCELLED: "취소",
+  };
+
+  return labels[status] || status || "대기";
+}
+
+function getApplicationStatusClass(status) {
+  const classes = {
+    PENDING: "status-pending",
+    APPROVED: "status-approved",
+    REJECTED: "status-rejected",
+    CANCELLED: "status-cancelled",
+  };
+
+  return classes[status] || "status-pending";
+}
+
+function getPostCategoryLabel(category) {
+  const labels = {
+    NOTICE: "공지",
+    RESOURCE: "자료",
+    QUESTION: "질문",
+  };
+
+  return labels[category] || category || "게시물";
+}
+
+function getPostClubId(post) {
+  return post.clubId || post.club?.clubId || post.club?.id || post.clubID || "";
+}
+
+function getPostId(post) {
+  return String(post.postId || post.id || "");
+}
+
+function getLocalBoardPosts() {
+  const boardPosts = safeJsonParse(localStorage.getItem(BOARD_POST_STORAGE_KEY), []) || [];
+  const mypagePosts = safeJsonParse(localStorage.getItem("mypageMyPosts"), []) || [];
+  const lastPost = safeJsonParse(localStorage.getItem("lastCreatedBoardPost"), null);
+
+  const map = new Map();
+
+  [...boardPosts, ...mypagePosts, ...(lastPost ? [lastPost] : [])].forEach((post, index) => {
+    const key = `${getPostClubId(post) || "club"}-${getPostId(post) || `local-${index}`}`;
+    map.set(key, {
+      ...post,
+      source: post.source || "board-local-cache",
+    });
+  });
+
+  return Array.from(map.values());
+}
+
+function getCurrentUserIdentity() {
+  const user = getDisplayUser();
+
+  return {
+    userId: String(user.userId || user.userid || user.id || ""),
+    email: String(user.email || "").toLowerCase(),
+    name: String(user.name || ""),
+  };
+}
+
+function isMyLocalPost(post) {
+  const user = getCurrentUserIdentity();
+  const authorId = String(post.authorId || post.userId || post.userid || "");
+  const authorEmail = String(post.authorEmail || post.email || "").toLowerCase();
+  const authorName = String(post.authorName || "");
+
+  if (user.userId && authorId && user.userId === authorId) return true;
+  if (user.email && authorEmail && user.email === authorEmail) return true;
+  if (user.name && authorName && user.name === authorName) return true;
+
+  // 게시판에서 방금 작성한 글인데 로그인 사용자 정보가 localStorage에 부족하면
+  // authorName이 "나"로 저장될 수 있어서, 같은 브라우저에서 작성한 글은 내 게시물로 보여준다.
+  if (post.source === "board-local-cache" && (!authorId && !authorEmail || authorName === "나")) return true;
+
+  return false;
+}
+
+function normalizeLocalPost(post) {
+  return {
+    ...post,
+    clubId: getPostClubId(post),
+    postId: getPostId(post),
+    clubName: post.clubName || post.club?.name || "동아리",
+    source: post.source || "board-local-cache",
+  };
+}
+
+function getLocalMyPosts() {
+  const localPosts = getLocalBoardPosts();
+  const matchedPosts = localPosts.filter(isMyLocalPost);
+
+  // API가 아직 내가 쓴 게시글을 제대로 못 내려주거나, 이전 버전에서 작성한 글은
+  // 작성자 식별값이 부족할 수 있어서 로컬 게시판 작성 글을 보조로 보여준다.
+  const postsToShow = matchedPosts.length > 0
+    ? matchedPosts
+    : localPosts.filter((post) => post.source === "board-local-cache");
+
+  return postsToShow.map(normalizeLocalPost);
+}
+
+function normalizeBoardPostFromClub(post, club = {}) {
+  return {
+    ...post,
+    clubId: getPostClubId(post) || club.clubId || club.id || "",
+    postId: getPostId(post),
+    clubName: post.clubName || post.club?.name || club.name || "동아리",
+  };
+}
+
+function isProbablyMyApiPost(post) {
+  const user = getCurrentUserIdentity();
+  const authorId = String(post.authorId || post.userId || post.userid || post.writerId || post.memberId || "");
+  const authorEmail = String(post.authorEmail || post.email || post.writerEmail || "").toLowerCase();
+  const authorName = String(post.authorName || post.writerName || post.memberName || "");
+
+  if (user.userId && authorId && user.userId === authorId) return true;
+  if (user.email && authorEmail && user.email === authorEmail) return true;
+  if (user.name && authorName && user.name === authorName) return true;
+
+  return false;
+}
+
+async function fetchPostsFromMyClubs() {
+  let clubs = mypageState.joinedClubs || [];
+
+  if (clubs.length === 0) {
+    try {
+      const joinedResult = await apiRequest("/api/users/me/clubs");
+      clubs = (joinedResult.data || []).map(normalizeApiClub);
+    } catch (error) {
+      console.warn("게시물 확인용 내 동아리 조회 실패:", error);
+      clubs = [];
+    }
+  }
+
+  if (clubs.length === 0) return [];
+
+  const results = await Promise.allSettled(
+    clubs.map(async (club) => {
+      const clubId = club.clubId || club.id;
+      if (!clubId) return [];
+
+      const result = await apiRequest(`/api/clubs/${clubId}/posts?page=0&size=100`);
+      return getPagedContent(result).map((post) => normalizeBoardPostFromClub(post, club));
+    })
+  );
+
+  return results
+    .filter((result) => result.status === "fulfilled")
+    .flatMap((result) => result.value);
+}
+
+function getLocalPostsByClubId(clubId) {
+  return getLocalBoardPosts()
+    .filter((post) => String(getPostClubId(post)) === String(clubId))
+    .map((post) => ({
+      ...post,
+      clubId: getPostClubId(post),
+      postId: getPostId(post),
+      clubName: post.clubName || post.club?.name || "동아리",
+      source: post.source || "board-local-cache",
+    }));
+}
+
+function mergePostLists(apiPosts = [], localPosts = []) {
+  const map = new Map();
+
+  localPosts.forEach((post, index) => {
+    const key = `${getPostClubId(post) || "club"}-${getPostId(post) || `local-${index}`}`;
+    map.set(key, post);
+  });
+
+  apiPosts.forEach((post, index) => {
+    const key = `${getPostClubId(post) || post.clubId || "club"}-${getPostId(post) || `api-${index}`}`;
+    const previous = map.get(key) || {};
+    map.set(key, {
+      ...previous,
+      ...post,
+      clubId: getPostClubId(post) || previous.clubId || "",
+      clubName: post.clubName || post.club?.name || previous.clubName || "동아리",
+    });
+  });
+
+  return Array.from(map.values()).sort((a, b) =>
+    String(b.createdAt || b.updatedAt || "").localeCompare(String(a.createdAt || a.updatedAt || ""))
+  );
+}
+
+function getApplicationId(application) {
+  return application.applicationId || application.applicationid || application.id || "";
+}
+
+function getApplicationClubName(application) {
+  return application.clubName || application.club?.name || application.name || "동아리";
+}
+
+function getApplicationClubId(application) {
+  return application.clubId || application.club?.clubId || application.club?.id || "";
+}
+
 function iconTemplate(type) {
   const icons = {
     pen: `
@@ -228,19 +473,72 @@ function renderOperatorArea() {
   if (operatorClubStatus) operatorClubStatus.textContent = statusText;
 }
 
-function setProfileEditMode(isEditMode) {
+function normalizeUserFromApi(data = {}) {
+  return {
+    userId: data.userId || data.userid || data.id || "",
+    email: data.email || "",
+    name: data.name || "",
+    studentId: data.studentId || data.studentid || "",
+    department: data.department || "",
+    role: data.role || "ROLE_STUDENT",
+    createdAt: data.createdAt || "",
+    joinDate: data.createdAt || data.joinDate || data.createdAtText || "",
+    emailVerified: data.emailVerified ?? data.emailverified ?? data.verified ?? data.emailAuthVerified ?? true,
+  };
+}
+
+function saveUserFromApi(data = {}) {
+  const nextUser = normalizeUserFromApi(data);
+
+  saveStoredUser(nextUser);
+  mypageState.user = {
+    ...mypageState.user,
+    ...nextUser,
+  };
+
+  return nextUser;
+}
+
+function renderEmailVerificationStatus() {
+  const target = document.querySelector("#emailVerificationStatus");
+  if (!target) return;
+
+  const user = getDisplayUser();
+  const verified = user.emailVerified ?? user.emailverified ?? user.verified ?? user.emailAuthVerified ?? true;
+  target.textContent = verified ? "인증완료" : "미인증";
+}
+
+async function updateMyProfileOnServer(payload) {
+  if (typeof apiRequest !== "function") {
+    throw new Error("api.js가 연결되지 않았습니다.");
+  }
+
+  const result = await apiRequest("/api/users/me", {
+    method: "PATCH",
+    body: payload,
+  });
+
+  const data = result?.data || payload;
+  return saveUserFromApi(data);
+}
+
+async function setProfileEditMode(isEditMode) {
   const editButton = document.querySelector("#profileInfoEditBtn");
-  const editableKeys = ["name", "department", "studentId"];
   const user = getDisplayUser();
 
+  if (!editButton) return;
+
   if (isEditMode) {
-    editableKeys.forEach((key) => {
+    ["name", "department"].forEach((key) => {
       const field = document.querySelector(`[data-profile-field="${key}"]`);
       if (!field) return;
 
-      const value = key === "studentId" ? (user.studentId || user.studentid || "") : (user[key] || "");
-      field.innerHTML = `<input class="profile-edit-input" data-profile-input="${key}" type="text" value="${value}" />`;
+      const value = user[key] || "";
+      field.innerHTML = `<input class="profile-edit-input" data-profile-input="${key}" type="text" value="${escapeHtml(value)}" />`;
     });
+
+    const studentIdField = document.querySelector('[data-profile-field="studentId"]');
+    if (studentIdField) studentIdField.textContent = user.studentId || user.studentid || "-";
 
     editButton.textContent = "저장";
     editButton.dataset.mode = "edit";
@@ -250,20 +548,34 @@ function setProfileEditMode(isEditMode) {
   const nextUser = {
     name: document.querySelector('[data-profile-input="name"]')?.value.trim() || "",
     department: document.querySelector('[data-profile-input="department"]')?.value.trim() || "",
-    studentId: document.querySelector('[data-profile-input="studentId"]')?.value.trim() || "",
   };
 
-  if (!nextUser.name || !nextUser.department || !nextUser.studentId) {
-    alert("이름, 학과, 학번을 모두 입력해주세요.");
+  if (!nextUser.name || !nextUser.department) {
+    alert("이름과 학과를 모두 입력해주세요.");
     return;
   }
 
-  saveStoredUser(nextUser);
-  editButton.textContent = "정보 수정";
-  editButton.dataset.mode = "view";
+  editButton.disabled = true;
+  editButton.textContent = "저장 중...";
 
-  renderProfile();
-  renderProfileDetail();
+  try {
+    await updateMyProfileOnServer(nextUser);
+
+    editButton.textContent = "정보 수정";
+    editButton.dataset.mode = "view";
+
+    renderProfile();
+    renderProfileDetail();
+    renderEmailVerificationStatus();
+    alert("프로필 정보가 DB에 저장되었습니다.");
+  } catch (error) {
+    console.error(error);
+    alert(error.message || "프로필 정보 수정에 실패했습니다.");
+    editButton.textContent = "저장";
+    editButton.dataset.mode = "edit";
+  } finally {
+    editButton.disabled = false;
+  }
 }
 
 function joinedClubTemplate(club) {
@@ -422,14 +734,345 @@ function renderScraps() {
     .join("");
 
   document.querySelectorAll("[data-remove-scrap]").forEach((button) => {
-    button.addEventListener("click", () => {
+    button.addEventListener("click", async () => {
       const removeId = button.dataset.removeScrap;
-      const nextClubs = getSavedClubs().filter((club) => club.id !== removeId);
-      saveClubs(nextClubs);
-      renderScraps();
-      renderActivity();
+      const targetClub = getSavedClubs().find((club) => String(club.id) === String(removeId));
+
+      button.disabled = true;
+
+      try {
+        if (typeof setBookmarkOnServer === "function") {
+          await setBookmarkOnServer(targetClub || { id: removeId, clubId: removeId }, false);
+        } else if (typeof apiRequest === "function") {
+          await apiRequest(`/api/clubs/${removeId}/bookmarks`, {
+            method: "DELETE",
+          });
+
+          const nextClubs = getSavedClubs().filter((club) => String(club.id) !== String(removeId));
+          saveClubs(nextClubs);
+        }
+
+        try {
+          if (typeof syncBookmarksFromServer === "function") {
+            await syncBookmarksFromServer();
+          }
+        } catch (syncError) {
+          console.warn("스크랩 목록 재동기화 실패:", syncError);
+        }
+
+        renderScraps();
+        renderActivity();
+      } catch (error) {
+        console.error(error);
+        alert(error.message || "스크랩 취소에 실패했습니다.");
+      } finally {
+        button.disabled = false;
+      }
     });
   });
+}
+
+function renderApplications() {
+  const summary = document.querySelector("#myApplicationsSummary");
+  const list = document.querySelector("#myApplicationsList");
+  if (!summary || !list) return;
+
+  const applications = mypageState.applications || [];
+
+  if (applications.length === 0) {
+    summary.textContent = "아직 지원한 동아리가 없습니다.";
+    list.innerHTML = `
+      <div class="mypage-api-empty">
+        지원 내역이 없습니다.<br />동아리 지원 페이지에서 관심 있는 동아리에 지원해보세요.
+      </div>
+    `;
+    return;
+  }
+
+  summary.textContent = `총 ${applications.length}개의 지원 내역이 있습니다.`;
+  list.innerHTML = applications
+    .map((application) => {
+      const applicationId = getApplicationId(application);
+      const clubId = getApplicationClubId(application);
+      const clubName = getApplicationClubName(application);
+      const status = application.status || "PENDING";
+      const content = application.content || application.answer || application.answersText || "지원 내용이 저장되어 있습니다.";
+      const createdAt = application.createdAt || application.appliedAt || application.createdDate || "";
+
+      return `
+        <article class="mypage-api-card application-history-card" data-application-id="${escapeHtml(applicationId)}">
+          <div class="mypage-api-card-head">
+            <div>
+              <h3>${escapeHtml(clubName)}</h3>
+              <p>${escapeHtml(formatDate(createdAt))}</p>
+            </div>
+            <span class="operator-api-status ${getApplicationStatusClass(status)}">
+              ${getApplicationStatusLabel(status)}
+            </span>
+          </div>
+          <div class="mypage-api-content">
+            <strong>지원 내용</strong>
+            <p>${escapeHtml(content)}</p>
+          </div>
+          <div class="mypage-api-actions">
+            ${clubId ? `<a href="./club-detail.html?clubId=${encodeURIComponent(clubId)}" class="mypage-api-link">동아리 상세</a>` : ""}
+            ${status === "PENDING" && applicationId ? `<button type="button" class="mypage-api-button danger" data-cancel-application="${escapeHtml(applicationId)}">신청 취소</button>` : ""}
+          </div>
+        </article>
+      `;
+    })
+    .join("");
+
+  bindApplicationCancelButtons();
+}
+
+function bindApplicationCancelButtons() {
+  document.querySelectorAll("[data-cancel-application]").forEach((button) => {
+    button.onclick = async function () {
+      const applicationId = button.dataset.cancelApplication;
+      if (!applicationId) return;
+
+      if (!confirm("이 지원 신청을 취소할까요?")) return;
+
+      button.disabled = true;
+
+      try {
+        await apiRequest(`/api/applications/${applicationId}`, {
+          method: "DELETE",
+        });
+
+        alert("지원 신청이 취소되었습니다.");
+        await loadMyApplications();
+        renderApplications();
+        renderActivity();
+      } catch (error) {
+        console.error(error);
+        alert(error.message || "지원 신청 취소에 실패했습니다.");
+      } finally {
+        button.disabled = false;
+      }
+    };
+  });
+}
+
+function renderMyPosts() {
+  const summary = document.querySelector("#myPostsSummary");
+  const list = document.querySelector("#myPostsList");
+  if (!summary || !list) return;
+
+  const posts = mypageState.posts || [];
+
+  if (posts.length === 0) {
+    summary.textContent = "아직 작성한 게시물이 없습니다.";
+    list.innerHTML = `
+      <div class="mypage-api-empty">
+        작성한 게시물이 없습니다.<br />동아리 게시판에서 게시물을 작성할 수 있습니다.
+      </div>
+    `;
+    return;
+  }
+
+  summary.textContent = `총 ${mypageState.postsTotal || posts.length}개의 게시물을 작성했습니다.`;
+  list.innerHTML = posts
+    .map((post) => {
+      const postId = getPostId(post);
+      const clubId = getPostClubId(post);
+      const clubName = post.clubName || post.club?.name || "동아리";
+      const title = post.title || "제목 없음";
+      const createdAt = post.createdAt || post.updatedAt || "";
+      const viewCount = post.viewCount ?? 0;
+
+      return `
+        <article class="mypage-api-card my-post-card" data-post-id="${escapeHtml(postId)}">
+          <div class="mypage-api-card-head">
+            <div>
+              <span class="mypage-post-category">${getPostCategoryLabel(post.category)}</span>
+              <h3>${escapeHtml(title)}</h3>
+              <p>${escapeHtml(clubName)} · ${escapeHtml(formatDate(createdAt))}</p>
+            </div>
+            <div class="mypage-post-view">
+              <span>조회수</span>
+              <strong>${viewCount}</strong>
+            </div>
+          </div>
+          <div class="mypage-api-actions">
+            ${clubId && postId ? `<a href="./board.html?clubId=${encodeURIComponent(clubId)}&postId=${encodeURIComponent(postId)}" class="mypage-api-link">게시물 보기</a>` : `<a href="./board.html" class="mypage-api-link">게시판 보기</a>`}
+          </div>
+        </article>
+      `;
+    })
+    .join("");
+}
+
+function renderOperatorRecentPosts() {
+  const list = document.querySelector("#operatorRecentPostList");
+  if (!list) return;
+
+  const posts = mypageState.operatorRecentPosts || [];
+
+  if (!isOperatorUser()) {
+    list.innerHTML = `<div class="mypage-empty-line">운영진 권한이 있어야 게시물을 확인할 수 있습니다.</div>`;
+    return;
+  }
+
+  if (posts.length === 0) {
+    list.innerHTML = `<div class="mypage-empty-line">운영 동아리 게시물이 없습니다.</div>`;
+    return;
+  }
+
+  list.innerHTML = posts
+    .slice(0, 5)
+    .map((post) => {
+      const clubId = getPostClubId(post) || post.__clubId || "";
+      const postId = getPostId(post);
+      const title = post.title || "제목 없음";
+      const date = formatDate(post.createdAt || post.updatedAt);
+
+      return `
+        <article data-operator-post-link="${escapeHtml(clubId)}" data-post-id="${escapeHtml(postId)}" tabindex="0" role="link">
+          <span>${getPostCategoryLabel(post.category)}</span>
+          <strong>${escapeHtml(title)}</strong>
+          <em>${escapeHtml(date)}</em>
+        </article>
+      `;
+    })
+    .join("");
+
+  document.querySelectorAll("[data-operator-post-link]").forEach((item) => {
+    item.onclick = function () {
+      const clubId = item.dataset.operatorPostLink;
+      const postId = item.dataset.postId;
+      const query = clubId ? `?clubId=${encodeURIComponent(clubId)}${postId ? `&postId=${encodeURIComponent(postId)}` : ""}` : "";
+      window.location.href = `./board.html${query}`;
+    };
+
+    item.onkeydown = function (event) {
+      if (event.key === "Enter") item.click();
+    };
+  });
+}
+
+async function loadMyApplications() {
+  try {
+    const appResult = await apiRequest("/api/users/me/applications");
+    mypageState.applications = Array.isArray(appResult.data) ? appResult.data : [];
+    const target = mypageState.activity.find((item) => item.key === "applications");
+    if (target) target.count = mypageState.applications.length;
+  } catch (error) {
+    console.warn("내 지원 내역 API 조회 실패:", error);
+    mypageState.applications = [];
+  }
+}
+
+async function fetchMyPostsByCategoryFallback() {
+  const categories = ["NOTICE", "RESOURCE", "QUESTION"];
+  const results = await Promise.allSettled(
+    categories.map((category) =>
+      apiRequest(`/api/users/me/posts?category=${category}&page=0&size=20`)
+    )
+  );
+
+  return results
+    .filter((result) => result.status === "fulfilled")
+    .flatMap((result) => getPagedContent(result.value));
+}
+
+async function loadMyPosts() {
+  const localPosts = getLocalMyPosts();
+  let apiPosts = [];
+  let postResult = null;
+
+  try {
+    postResult = await apiRequest("/api/users/me/posts?page=0&size=50");
+    apiPosts = getPagedContent(postResult);
+
+    // 백엔드에서 category 없는 조회가 빈 배열로 내려오는 경우가 있어서
+    // 공지/자료/질문 카테고리별 조회를 한 번 더 시도한다.
+    if (apiPosts.length === 0) {
+      apiPosts = await fetchMyPostsByCategoryFallback();
+    }
+  } catch (error) {
+    console.warn("내 게시물 API 조회 실패, 카테고리별 조회로 대체:", error);
+    apiPosts = await fetchMyPostsByCategoryFallback().catch(() => []);
+  }
+
+  // /api/users/me/posts가 비어 있으면, 동아리 게시판 목록에서 다시 찾아본다.
+  // 백엔드가 작성자 정보를 제대로 내려주면 내 글만 필터링하고,
+  // 작성자 정보가 부족하면 적어도 같은 브라우저에서 쓴 로컬 캐시 글을 같이 보여준다.
+  if (apiPosts.length === 0) {
+    const clubPosts = await fetchPostsFromMyClubs().catch(() => []);
+    const myClubPosts = clubPosts.filter(isProbablyMyApiPost);
+
+    if (myClubPosts.length > 0) {
+      apiPosts = myClubPosts;
+    } else if (localPosts.length === 0) {
+      apiPosts = clubPosts;
+    }
+  }
+
+  mypageState.posts = mergePostLists(apiPosts, localPosts);
+  mypageState.postsTotal = Math.max(
+    getPagedTotal(postResult, apiPosts.length),
+    mypageState.posts.length
+  );
+
+  const target = mypageState.activity.find((item) => item.key === "posts");
+  if (target) target.count = mypageState.postsTotal || mypageState.posts.length;
+}
+
+async function loadOperatorRecentPosts() {
+  if (!isOperatorUser()) {
+    mypageState.operatorRecentPosts = [];
+    return;
+  }
+
+  const clubs = mypageState.operatorClubs.length > 0
+    ? mypageState.operatorClubs
+    : mypageState.joinedClubs.slice(0, 1);
+
+  if (clubs.length === 0) {
+    mypageState.operatorRecentPosts = [];
+    return;
+  }
+
+  try {
+    const postGroups = await Promise.all(
+      clubs.slice(0, 3).map(async (club) => {
+        try {
+          const result = await apiRequest(`/api/clubs/${club.clubId}/posts?page=0&size=5`);
+          const apiPosts = getPagedContent(result).map((post) => ({
+            ...post,
+            __clubId: club.clubId,
+            clubId: getPostClubId(post) || club.clubId,
+            clubName: post.clubName || club.name,
+          }));
+          const localPosts = getLocalPostsByClubId(club.clubId).map((post) => ({
+            ...post,
+            __clubId: club.clubId,
+            clubId: getPostClubId(post) || club.clubId,
+            clubName: post.clubName || club.name,
+          }));
+
+          return mergePostLists(apiPosts, localPosts);
+        } catch (error) {
+          console.warn(`${club.name} 게시물 조회 실패, 로컬 게시판 작성 내역으로 대체:`, error);
+          return getLocalPostsByClubId(club.clubId).map((post) => ({
+            ...post,
+            __clubId: club.clubId,
+            clubId: getPostClubId(post) || club.clubId,
+            clubName: post.clubName || club.name,
+          }));
+        }
+      })
+    );
+
+    mypageState.operatorRecentPosts = postGroups
+      .flat()
+      .sort((a, b) => String(b.createdAt || b.updatedAt || "").localeCompare(String(a.createdAt || a.updatedAt || "")));
+  } catch (error) {
+    console.warn("운영 동아리 게시물 조회 실패:", error);
+    mypageState.operatorRecentPosts = [];
+  }
 }
 
 function setActiveTab(tabName) {
@@ -447,10 +1090,23 @@ function setActiveTab(tabName) {
 
   if (tabName === "profile") {
     renderProfileDetail();
+    renderEmailVerificationStatus();
   }
 
   if (tabName === "scraps") {
     renderScraps();
+  }
+
+  if (tabName === "applications") {
+    renderApplications();
+  }
+
+  if (tabName === "posts") {
+    renderMyPosts();
+  }
+
+  if (tabName === "operator-dashboard" || tabName === "operator-board") {
+    renderOperatorRecentPosts();
   }
 }
 
@@ -472,51 +1128,131 @@ document.querySelector("#clearBookmarks")?.addEventListener("click", () => {
   renderActivity();
 });
 
-document.querySelector(".profile-edit-btn")?.addEventListener("click", () => {
-  localStorage.removeItem("authToken");
-  localStorage.removeItem("currentUser");
-  localStorage.removeItem("userRole");
-
-  sessionStorage.removeItem("authToken");
-  sessionStorage.removeItem("currentUser");
-  sessionStorage.removeItem("userRole");
-
-  window.location.href = "./index.html";
+document.querySelector("#refreshApplicationsBtn")?.addEventListener("click", async () => {
+  await loadMyApplications();
+  renderApplications();
+  renderActivity();
 });
 
-document.querySelector("#profileInfoEditBtn")?.addEventListener("click", () => {
+document.querySelector("#refreshMyPostsBtn")?.addEventListener("click", async () => {
+  await loadMyPosts();
+  renderMyPosts();
+  renderActivity();
+});
+
+document.querySelector(".profile-edit-btn")?.addEventListener("click", async () => {
+  const refreshToken = typeof getRefreshToken === "function" ? getRefreshToken() : (localStorage.getItem("refreshToken") || sessionStorage.getItem("refreshToken"));
+
+  try {
+    if (refreshToken && typeof apiRequest === "function") {
+      await apiRequest("/api/auth/logout", {
+        method: "POST",
+        body: { refreshToken },
+      });
+    }
+  } catch (error) {
+    console.warn("로그아웃 API 호출 실패, 로컬 세션은 삭제합니다:", error);
+  } finally {
+    if (typeof clearAuthSession === "function") {
+      clearAuthSession();
+    } else {
+      localStorage.removeItem("authToken");
+      localStorage.removeItem("refreshToken");
+      localStorage.removeItem("currentUser");
+      localStorage.removeItem("userRole");
+      sessionStorage.removeItem("authToken");
+      sessionStorage.removeItem("refreshToken");
+      sessionStorage.removeItem("currentUser");
+      sessionStorage.removeItem("userRole");
+    }
+
+    window.location.href = "./index.html";
+  }
+});
+
+document.querySelector("#profileInfoEditBtn")?.addEventListener("click", async () => {
   const button = document.querySelector("#profileInfoEditBtn");
   const isEditMode = button.dataset.mode === "edit";
-  setProfileEditMode(!isEditMode);
+  await setProfileEditMode(!isEditMode);
 });
 
-document.querySelector("#changePasswordBtn")?.addEventListener("click", () => {
-  const nextPassword = prompt("새 비밀번호를 입력해주세요. (8자 이상)");
+document.querySelector("#changePasswordBtn")?.addEventListener("click", async () => {
+  const nextPassword = prompt("새 비밀번호를 입력해주세요.\n8자 이상, 영문/숫자/특수문자를 모두 포함해야 합니다.");
 
   if (nextPassword === null) return;
 
+  const trimmedPassword = nextPassword.trim();
   const passwordRule = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/;
 
-  if (!passwordRule.test(nextPassword.trim())) {
+  if (!passwordRule.test(trimmedPassword)) {
     alert("비밀번호는 8자 이상, 영문/숫자/특수문자를 모두 포함해야 합니다.");
     return;
   }
 
-  const registeredUser = safeJsonParse(localStorage.getItem("registeredUser")) || {};
-  registeredUser.password = nextPassword.trim();
-  localStorage.setItem("registeredUser", JSON.stringify(registeredUser));
+  const confirmPassword = prompt("새 비밀번호를 한 번 더 입력해주세요.");
 
-  alert("비밀번호가 변경되었습니다.");
+  if (confirmPassword === null) return;
+
+  if (confirmPassword.trim() !== trimmedPassword) {
+    alert("비밀번호가 일치하지 않습니다.");
+    return;
+  }
+
+  const button = document.querySelector("#changePasswordBtn");
+  button.disabled = true;
+
+  try {
+    await updateMyProfileOnServer({
+      password: trimmedPassword,
+    });
+
+    alert("비밀번호가 DB에 저장되었습니다. 다음 로그인부터 새 비밀번호를 사용하세요.");
+  } catch (error) {
+    console.error(error);
+    alert(error.message || "비밀번호 변경에 실패했습니다.");
+  } finally {
+    button.disabled = false;
+  }
 });
 
-document.querySelector("#withdrawAccountBtn")?.addEventListener("click", () => {
-  const ok = confirm("정말 회원 탈퇴하시겠습니까? 저장된 회원가입 정보와 로그인 정보가 삭제됩니다.");
+document.querySelector("#withdrawAccountBtn")?.addEventListener("click", async () => {
+  const ok = confirm("정말 회원 탈퇴하시겠습니까? 탈퇴 후에는 현재 계정으로 로그인할 수 없습니다.");
 
   if (!ok) return;
 
-  localStorage.clear();
-  sessionStorage.clear();
-  window.location.href = "./index.html";
+  const finalCheck = prompt("탈퇴하려면 '회원탈퇴'를 입력해주세요.");
+
+  if (finalCheck !== "회원탈퇴") {
+    alert("회원 탈퇴가 취소되었습니다.");
+    return;
+  }
+
+  const button = document.querySelector("#withdrawAccountBtn");
+  button.disabled = true;
+
+  try {
+    await apiRequest("/api/users/me", {
+      method: "DELETE",
+    });
+
+    alert("회원 탈퇴가 완료되었습니다.");
+
+    if (typeof clearAuthSession === "function") clearAuthSession();
+    else {
+      localStorage.clear();
+      sessionStorage.clear();
+    }
+
+    window.location.href = "./index.html";
+  } catch (error) {
+    console.error(error);
+    alert(
+      error.message ||
+        "회원 탈퇴 API 호출에 실패했습니다. 백엔드에 DELETE /api/users/me 엔드포인트가 있는지 확인해주세요."
+    );
+  } finally {
+    button.disabled = false;
+  }
 });
 
 
@@ -546,15 +1282,7 @@ async function syncMyPageFromApi() {
     const profileResult = await apiRequest("/api/users/me");
     const data = profileResult.data || {};
 
-    saveStoredUser({
-      userId: data.userId || data.userid || "",
-      email: data.email || "",
-      name: data.name || "",
-      studentId: data.studentId || data.studentid || "",
-      department: data.department || "",
-      role: data.role || "ROLE_STUDENT",
-      createdAt: data.createdAt || "",
-    });
+    saveUserFromApi(data);
   } catch (error) {
     console.warn("내 프로필 API 조회 실패:", error);
     if (String(error.message || "").includes("토큰") || String(error.message || "").includes("로그인")) {
@@ -568,9 +1296,19 @@ async function syncMyPageFromApi() {
       clubId: String(club.clubId),
       name: club.name,
       typeText: club.type === "CENTRAL" ? "중앙동아리" : "일반동아리",
-      category: club.myRole === "ADMIN" ? "운영진" : "부원",
+      category: club.myRole === "ADMIN" || club.myRole === "OWNER" || club.myRole === "MANAGER" ? "운영진" : "부원",
+      myRole: club.myRole || club.role || "",
       image: club.imageUrl || "",
     }));
+
+    mypageState.operatorClubs = mypageState.joinedClubs.filter((club) => {
+      const role = String(club.myRole || club.category || "").toUpperCase();
+      return role.includes("ADMIN") || role.includes("OWNER") || role.includes("MANAGER") || role.includes("운영");
+    });
+
+    if (mypageState.operatorClubs.length === 0 && isOperatorUser() && mypageState.joinedClubs.length > 0) {
+      mypageState.operatorClubs = [mypageState.joinedClubs[0]];
+    }
   } catch (error) {
     console.warn("내 가입 동아리 API 조회 실패:", error);
   }
@@ -582,13 +1320,9 @@ async function syncMyPageFromApi() {
     console.warn("내 스크랩 API 조회 실패:", error);
   }
 
-  try {
-    const appResult = await apiRequest("/api/users/me/applications");
-    const target = mypageState.activity.find((item) => item.key === "applications");
-    if (target) target.count = (appResult.data || []).length;
-  } catch (error) {
-    console.warn("내 지원 내역 API 조회 실패:", error);
-  }
+  await loadMyApplications();
+  await loadMyPosts();
+  await loadOperatorRecentPosts();
 }
 
 async function initMyPage() {
@@ -601,6 +1335,9 @@ async function initMyPage() {
   renderActivity();
   renderNotifications();
   renderScraps();
+  renderApplications();
+  renderMyPosts();
+  renderOperatorRecentPosts();
 }
 
 initMyPage();

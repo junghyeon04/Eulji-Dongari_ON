@@ -22,6 +22,9 @@ function clearAuthSession() {
   sessionStorage.removeItem("refreshToken");
   sessionStorage.removeItem("currentUser");
   sessionStorage.removeItem("userRole");
+
+  // 스크랩은 계정별 데이터라 로그아웃 시 로컬 캐시도 비웁니다.
+  localStorage.removeItem("bookmarkedClubs");
 }
 
 function saveAuthSession(data, keepLogin = false) {
@@ -102,4 +105,105 @@ async function apiRequest(endpoint, options = {}) {
   }
 
   return result;
+}
+
+
+/* =========================================================
+   Bookmark sync helpers
+   - POST /api/clubs/{clubId}/bookmarks : 관심 동아리 등록
+   - DELETE /api/clubs/{clubId}/bookmarks : 관심 동아리 취소
+   - GET /api/users/me/bookmarks : 내 관심 동아리 목록 조회
+========================================================= */
+function getLocalBookmarkedClubs() {
+  try {
+    return JSON.parse(localStorage.getItem("bookmarkedClubs")) || [];
+  } catch {
+    return [];
+  }
+}
+
+function saveLocalBookmarkedClubs(clubs) {
+  localStorage.setItem("bookmarkedClubs", JSON.stringify(clubs || []));
+}
+
+function normalizeBookmarkClub(apiClub = {}) {
+  const source = apiClub.club || apiClub;
+  const id = String(
+    source.clubId ||
+      source.id ||
+      apiClub.clubId ||
+      apiClub.id ||
+      ""
+  );
+
+  return {
+    id,
+    clubId: id,
+    name: source.name || apiClub.clubName || apiClub.name || "-",
+    description:
+      source.shortDescription ||
+      source.description ||
+      apiClub.shortDescription ||
+      apiClub.description ||
+      "",
+    status:
+      source.recruitmentStatus ||
+      source.status ||
+      apiClub.recruitmentStatus ||
+      apiClub.status ||
+      "UNKNOWN",
+    image: source.imageUrl || apiClub.imageUrl || "",
+    category: source.category || apiClub.category || "",
+    type: source.type || apiClub.type || "",
+  };
+}
+
+async function syncBookmarksFromServer() {
+  const token = getAuthToken();
+
+  if (!token || typeof apiRequest !== "function") {
+    return getLocalBookmarkedClubs();
+  }
+
+  const result = await apiRequest("/api/users/me/bookmarks");
+  const bookmarks = Array.isArray(result.data) ? result.data : [];
+  const clubs = bookmarks.map(normalizeBookmarkClub).filter((club) => club.id);
+
+  saveLocalBookmarkedClubs(clubs);
+  return clubs;
+}
+
+async function setBookmarkOnServer(club, shouldSave) {
+  const clubId = String(club?.id || club?.clubId || "");
+
+  if (!clubId) {
+    throw new Error("동아리 정보를 찾을 수 없습니다.");
+  }
+
+  if (!getAuthToken()) {
+    throw new Error("로그인 후 스크랩할 수 있습니다.");
+  }
+
+  await apiRequest(`/api/clubs/${clubId}/bookmarks`, {
+    method: shouldSave ? "POST" : "DELETE",
+  });
+
+  const normalized = normalizeBookmarkClub({ ...club, clubId });
+  let savedClubs = getLocalBookmarkedClubs();
+
+  if (shouldSave) {
+    const exists = savedClubs.some((savedClub) => String(savedClub.id) === clubId);
+    if (!exists) savedClubs.push(normalized);
+  } else {
+    savedClubs = savedClubs.filter((savedClub) => String(savedClub.id) !== clubId);
+  }
+
+  saveLocalBookmarkedClubs(savedClubs);
+
+  try {
+    return await syncBookmarksFromServer();
+  } catch (error) {
+    console.warn("스크랩 서버 동기화 실패, 로컬 상태만 반영:", error);
+    return savedClubs;
+  }
 }
