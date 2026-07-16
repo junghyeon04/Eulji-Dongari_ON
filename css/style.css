@@ -2407,6 +2407,41 @@ main {
   cursor: pointer;
 }
 
+
+.board-post-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.board-post-topbar .back-link {
+  margin-bottom: 0;
+}
+
+.post-delete-btn {
+  min-width: 112px;
+  height: 38px;
+  padding: 0 16px;
+  border: 1px solid #ff4d4f;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #ff3b3b;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.post-delete-btn:hover {
+  background: #fff2f2;
+}
+
+.post-delete-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .board-form {
   display: grid;
   gap: 28px;

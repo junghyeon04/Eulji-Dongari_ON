@@ -166,6 +166,11 @@ function getPagedContent(result) {
   const data = getResponseData(result, {});
   if (Array.isArray(data)) return data;
   if (Array.isArray(data.content)) return data.content;
+  if (Array.isArray(data.posts)) return data.posts;
+  if (Array.isArray(data.applications)) return data.applications;
+  if (Array.isArray(data.items)) return data.items;
+  if (Array.isArray(data.list)) return data.list;
+  if (Array.isArray(data.records)) return data.records;
   return [];
 }
 
@@ -206,6 +211,7 @@ function getPostCategoryLabel(category) {
   const labels = {
     NOTICE: "공지",
     RESOURCE: "자료",
+    MATERIAL: "자료",
     QUESTION: "질문",
   };
 
@@ -213,29 +219,113 @@ function getPostCategoryLabel(category) {
 }
 
 function getPostClubId(post) {
-  return post.clubId || post.club?.clubId || post.club?.id || post.clubID || "";
+  return String(post.clubId || post.clubid || post.clubID || post.__clubId || post.club?.clubId || post.club?.id || "");
 }
 
 function getPostId(post) {
-  return String(post.postId || post.id || "");
+  return String(post.postId || post.postid || post.id || post.post?.postId || "");
+}
+
+
+const DEFAULT_BOARD_SEED_TITLES = [
+  "2026년 2학기 아기사자 모집",
+  "비전공자도 지원 가능한가요?",
+  "스터디는 온라인으로 참여 가능할까요?",
+  "해커톤 참가 팀 모집 안내",
+  "7~8월 정기 스터디 일정 안내",
+  "2학기 아기사자 모집은 언제 하나요?",
+  "6~9주차 기초 스터디 자료",
+  "멋사 미니프로젝트 최종 자료",
+  "1~5주차 기초 스터디 자료",
+  "2026년 1학기 아기사자 모집",
+];
+
+function isDefaultBoardSeedPost(post) {
+  const title = String(post?.title || "").trim();
+  const author = String(post?.author || post?.authorName || post?.writerName || "").trim();
+
+  if (!title) return false;
+  if (DEFAULT_BOARD_SEED_TITLES.includes(title)) return true;
+
+  const seedAuthor = author === "운영진" || author === "이*현" || author === "작성자";
+  if (seedAuthor && /모집 안내$/.test(title)) return true;
+  if (seedAuthor && /활동은 어떻게 진행되나요\?$/.test(title)) return true;
+  if (seedAuthor && /소개 자료$/.test(title)) return true;
+
+  return false;
+}
+
+function removeDefaultBoardSeedPosts(posts = []) {
+  return posts.filter((post) => !isDefaultBoardSeedPost(post));
 }
 
 function getLocalBoardPosts() {
-  const boardPosts = safeJsonParse(localStorage.getItem(BOARD_POST_STORAGE_KEY), []) || [];
-  const mypagePosts = safeJsonParse(localStorage.getItem("mypageMyPosts"), []) || [];
+  const boardPosts = removeDefaultBoardSeedPosts(safeJsonParse(localStorage.getItem(BOARD_POST_STORAGE_KEY), []) || []);
+  const mypagePosts = removeDefaultBoardSeedPosts(safeJsonParse(localStorage.getItem("mypageMyPosts"), []) || []);
   const lastPost = safeJsonParse(localStorage.getItem("lastCreatedBoardPost"), null);
+  const extraPosts = removeDefaultBoardSeedPosts(safeJsonParse(localStorage.getItem("myCreatedBoardPosts"), []) || []);
+  const perClubPosts = [];
+
+  // club-detail.html 게시판은 clubBoardPosts_{clubId} 키에 저장되어 있었기 때문에
+  // 모든 동아리별 게시판 캐시도 같이 읽어온다.
+  Object.keys(localStorage).forEach((key) => {
+    if (!key.startsWith("clubBoardPosts_")) return;
+
+    const clubId = key.replace("clubBoardPosts_", "");
+    const posts = safeJsonParse(localStorage.getItem(key), []) || [];
+    const cleanedPosts = removeDefaultBoardSeedPosts(posts);
+    if (cleanedPosts.length !== posts.length) {
+      localStorage.setItem(key, JSON.stringify(cleanedPosts));
+    }
+
+    cleanedPosts.forEach((post) => {
+      perClubPosts.push({
+        ...post,
+        clubId: post.clubId || clubId,
+        postId: post.postId || post.id,
+        source: post.source || "club-detail-board-cache",
+      });
+    });
+  });
 
   const map = new Map();
 
-  [...boardPosts, ...mypagePosts, ...(lastPost ? [lastPost] : [])].forEach((post, index) => {
+  [
+    ...boardPosts,
+    ...perClubPosts,
+    ...mypagePosts,
+    ...extraPosts,
+    ...(lastPost && !isDefaultBoardSeedPost(lastPost) ? [lastPost] : []),
+  ].forEach((post, index) => {
     const key = `${getPostClubId(post) || "club"}-${getPostId(post) || `local-${index}`}`;
     map.set(key, {
       ...post,
+      clubId: getPostClubId(post),
+      postId: getPostId(post),
       source: post.source || "board-local-cache",
     });
   });
 
-  return Array.from(map.values());
+  return removeDefaultBoardSeedPosts(Array.from(map.values()));
+}
+
+function getKoreanNameOnly(value) {
+  return String(value || "").replace(/[^가-힣]/g, "");
+}
+
+function isMaskedNameMatch(userName, authorName) {
+  const user = getKoreanNameOnly(userName);
+  const author = getKoreanNameOnly(authorName);
+
+  if (!user || !author) return false;
+  if (user === author) return true;
+
+  // 예: 이정현 / 이*현, 김민수 / 김*수 처럼 가운데가 마스킹된 작성자명 처리
+  if (author.length >= 2 && user.length >= 2) {
+    return user[0] === author[0] && user[user.length - 1] === author[author.length - 1];
+  }
+
+  return false;
 }
 
 function getCurrentUserIdentity() {
@@ -250,17 +340,23 @@ function getCurrentUserIdentity() {
 
 function isMyLocalPost(post) {
   const user = getCurrentUserIdentity();
-  const authorId = String(post.authorId || post.userId || post.userid || "");
-  const authorEmail = String(post.authorEmail || post.email || "").toLowerCase();
-  const authorName = String(post.authorName || "");
+  const authorId = String(post.authorId || post.userId || post.userid || post.writerId || post.memberId || "");
+  const authorEmail = String(post.authorEmail || post.email || post.writerEmail || "").toLowerCase();
+  const authorName = String(post.authorName || post.writerName || post.memberName || post.author || "");
 
+  if (post.createdByCurrentUser === true || post.isMine === true || post.createdByMe === true) return true;
   if (user.userId && authorId && user.userId === authorId) return true;
   if (user.email && authorEmail && user.email === authorEmail) return true;
-  if (user.name && authorName && user.name === authorName) return true;
+  if (user.name && authorName && (user.name === authorName || isMaskedNameMatch(user.name, authorName))) return true;
 
-  // 게시판에서 방금 작성한 글인데 로그인 사용자 정보가 localStorage에 부족하면
-  // authorName이 "나"로 저장될 수 있어서, 같은 브라우저에서 작성한 글은 내 게시물로 보여준다.
-  if (post.source === "board-local-cache" && (!authorId && !authorEmail || authorName === "나")) return true;
+  const createdIds = safeJsonParse(localStorage.getItem("myCreatedBoardPostIds"), []) || [];
+  const clubId = getPostClubId(post);
+  const postId = getPostId(post);
+  if (clubId && postId && createdIds.some((item) => String(item.clubId) === String(clubId) && String(item.postId) === String(postId))) {
+    return true;
+  }
+
+  if ((post.source === "board-local-cache" || post.source === "club-detail-board-cache") && ((!authorId && !authorEmail) || authorName === "나" || post.createdByCurrentUser === true)) return true;
 
   return false;
 }
@@ -301,11 +397,11 @@ function isProbablyMyApiPost(post) {
   const user = getCurrentUserIdentity();
   const authorId = String(post.authorId || post.userId || post.userid || post.writerId || post.memberId || "");
   const authorEmail = String(post.authorEmail || post.email || post.writerEmail || "").toLowerCase();
-  const authorName = String(post.authorName || post.writerName || post.memberName || "");
+  const authorName = String(post.authorName || post.writerName || post.memberName || post.author || "");
 
   if (user.userId && authorId && user.userId === authorId) return true;
   if (user.email && authorEmail && user.email === authorEmail) return true;
-  if (user.name && authorName && user.name === authorName) return true;
+  if (user.name && authorName && (user.name === authorName || isMaskedNameMatch(user.name, authorName))) return true;
 
   return false;
 }
@@ -371,7 +467,7 @@ function mergePostLists(apiPosts = [], localPosts = []) {
     });
   });
 
-  return Array.from(map.values()).sort((a, b) =>
+  return removeDefaultBoardSeedPosts(Array.from(map.values())).sort((a, b) =>
     String(b.createdAt || b.updatedAt || "").localeCompare(String(a.createdAt || a.updatedAt || ""))
   );
 }
@@ -607,7 +703,7 @@ function renderJoinedClubs() {
 
   const html = mypageState.joinedClubs.length === 0
     ? emptyHtml
-    : mypageState.joinedClubs.map(joinedClubTemplate).join("");
+    : mypageState.joinedClubs.map(joinedClubTemplate).join("\n\n");
 
   if (shortList) shortList.innerHTML = html;
   if (fullList) fullList.innerHTML = html;
@@ -654,7 +750,7 @@ function renderActivity() {
         </button>
       `;
     })
-    .join("");
+    .join("\n\n");
 
   document.querySelectorAll("[data-activity]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -690,7 +786,7 @@ function renderNotifications() {
         </article>
       `;
     })
-    .join("");
+    .join("\n\n");
 }
 
 function renderScraps() {
@@ -731,7 +827,7 @@ function renderScraps() {
         </article>
       `;
     })
-    .join("");
+    .join("\n\n");
 
   document.querySelectorAll("[data-remove-scrap]").forEach((button) => {
     button.addEventListener("click", async () => {
@@ -821,7 +917,7 @@ function renderApplications() {
         </article>
       `;
     })
-    .join("");
+    .join("\n\n");
 
   bindApplicationCancelButtons();
 }
@@ -880,7 +976,7 @@ function renderMyPosts() {
       const clubName = post.clubName || post.club?.name || "동아리";
       const title = post.title || "제목 없음";
       const createdAt = post.createdAt || post.updatedAt || "";
-      const viewCount = post.viewCount ?? 0;
+      const viewCount = post.viewCount ?? post.views ?? 0;
 
       return `
         <article class="mypage-api-card my-post-card" data-post-id="${escapeHtml(postId)}">
@@ -896,12 +992,12 @@ function renderMyPosts() {
             </div>
           </div>
           <div class="mypage-api-actions">
-            ${clubId && postId ? `<a href="./board.html?clubId=${encodeURIComponent(clubId)}&postId=${encodeURIComponent(postId)}" class="mypage-api-link">게시물 보기</a>` : `<a href="./board.html" class="mypage-api-link">게시판 보기</a>`}
+            ${clubId && postId ? `<a href="./club-detail.html?clubId=${encodeURIComponent(clubId)}&tab=board&postId=${encodeURIComponent(postId)}" class="mypage-api-link">게시물 보기</a>` : `<a href="./club-list.html" class="mypage-api-link">게시판 보기</a>`}
           </div>
         </article>
       `;
     })
-    .join("");
+    .join("\n\n");
 }
 
 function renderOperatorRecentPosts() {
@@ -936,14 +1032,14 @@ function renderOperatorRecentPosts() {
         </article>
       `;
     })
-    .join("");
+    .join("\n\n");
 
   document.querySelectorAll("[data-operator-post-link]").forEach((item) => {
     item.onclick = function () {
       const clubId = item.dataset.operatorPostLink;
       const postId = item.dataset.postId;
-      const query = clubId ? `?clubId=${encodeURIComponent(clubId)}${postId ? `&postId=${encodeURIComponent(postId)}` : ""}` : "";
-      window.location.href = `./board.html${query}`;
+      const query = clubId ? `?clubId=${encodeURIComponent(clubId)}&tab=board${postId ? `&postId=${encodeURIComponent(postId)}` : ""}` : "";
+      window.location.href = `./club-detail.html${query}`;
     };
 
     item.onkeydown = function (event) {
@@ -952,16 +1048,63 @@ function renderOperatorRecentPosts() {
   });
 }
 
+function getApplicationCacheForMyPage() {
+  return safeJsonParse(localStorage.getItem("clubApplicationCache"), []) || [];
+}
+
+function normalizeMyApplication(application) {
+  const answers = Array.isArray(application.answers) ? application.answers : [];
+  const answerText = answers
+    .map((answer) => {
+      const label = answer.label || answer.questionTitle || answer.question || `문항 ${answer.questionId || ""}`.trim();
+      const value = Array.isArray(answer.values) ? answer.values.join(", ") : answer.value || answer.answer || "";
+      return value ? `${label}: ${value}` : "";
+    })
+    .filter(Boolean)
+    .join("\n\n");
+
+  return {
+    ...application,
+    applicationId: getApplicationId(application),
+    clubId: getApplicationClubId(application),
+    clubName: getApplicationClubName(application),
+    status: application.status || "PENDING",
+    content: application.content || application.answer || application.answersText || answerText || "지원 내용이 저장되어 있습니다.",
+    createdAt: application.createdAt || application.appliedAt || application.createdDate || "",
+  };
+}
+
+function mergeApplicationsForMyPage(apiApplications = [], localApplications = []) {
+  const map = new Map();
+
+  localApplications.map(normalizeMyApplication).forEach((item, index) => {
+    const key = getApplicationId(item) || `${getApplicationClubId(item)}-${item.studentId || item.studentid || index}`;
+    map.set(key, item);
+  });
+
+  apiApplications.map(normalizeMyApplication).forEach((item, index) => {
+    const key = getApplicationId(item) || `${getApplicationClubId(item)}-${item.studentId || item.studentid || index}`;
+    const previous = map.get(key) || {};
+    map.set(key, { ...previous, ...item });
+  });
+
+  return Array.from(map.values()).sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+}
+
 async function loadMyApplications() {
+  const localApplications = getApplicationCacheForMyPage();
+  let apiApplications = [];
+
   try {
     const appResult = await apiRequest("/api/users/me/applications");
-    mypageState.applications = Array.isArray(appResult.data) ? appResult.data : [];
-    const target = mypageState.activity.find((item) => item.key === "applications");
-    if (target) target.count = mypageState.applications.length;
+    apiApplications = getPagedContent(appResult);
   } catch (error) {
-    console.warn("내 지원 내역 API 조회 실패:", error);
-    mypageState.applications = [];
+    console.warn("내 지원 내역 API 조회 실패, 로컬 제출 내역으로 대체:", error);
   }
+
+  mypageState.applications = mergeApplicationsForMyPage(apiApplications, localApplications);
+  const target = mypageState.activity.find((item) => item.key === "applications");
+  if (target) target.count = mypageState.applications.length;
 }
 
 async function fetchMyPostsByCategoryFallback() {
@@ -977,36 +1120,68 @@ async function fetchMyPostsByCategoryFallback() {
     .flatMap((result) => getPagedContent(result.value));
 }
 
+async function fetchAllClubPostsForMyPage() {
+  let clubs = [];
+  try {
+    const clubResult = await apiRequest("/api/clubs");
+    clubs = getPagedContent(clubResult).map(normalizeApiClub);
+  } catch (error) {
+    console.warn("전체 동아리 게시물 확인용 동아리 목록 조회 실패:", error);
+    return [];
+  }
+
+  const createdIds = safeJsonParse(localStorage.getItem("myCreatedBoardPostIds"), []) || [];
+  const createdKeySet = new Set(createdIds.map((item) => `${String(item.clubId)}-${String(item.postId)}`));
+
+  const results = await Promise.allSettled(
+    clubs.map(async (club) => {
+      const clubId = club.clubId || club.id;
+      if (!clubId) return [];
+      const result = await apiRequest(`/api/clubs/${clubId}/posts?page=0&size=100`);
+      return getPagedContent(result).map((post) => normalizeBoardPostFromClub(post, club));
+    })
+  );
+
+  const posts = results
+    .filter((result) => result.status === "fulfilled")
+    .flatMap((result) => result.value);
+
+  return posts.filter((post) => {
+    const key = `${String(getPostClubId(post))}-${String(getPostId(post))}`;
+    return isProbablyMyApiPost(post) || createdKeySet.has(key);
+  });
+}
+
 async function loadMyPosts() {
   const localPosts = getLocalMyPosts();
   let apiPosts = [];
   let postResult = null;
 
   try {
-    postResult = await apiRequest("/api/users/me/posts?page=0&size=50");
-    apiPosts = getPagedContent(postResult);
+    postResult = await apiRequest("/api/users/me/posts?page=0&size=100");
+    apiPosts = removeDefaultBoardSeedPosts(getPagedContent(postResult));
 
-    // 백엔드에서 category 없는 조회가 빈 배열로 내려오는 경우가 있어서
-    // 공지/자료/질문 카테고리별 조회를 한 번 더 시도한다.
     if (apiPosts.length === 0) {
-      apiPosts = await fetchMyPostsByCategoryFallback();
+      apiPosts = removeDefaultBoardSeedPosts(await fetchMyPostsByCategoryFallback());
     }
   } catch (error) {
     console.warn("내 게시물 API 조회 실패, 카테고리별 조회로 대체:", error);
     apiPosts = await fetchMyPostsByCategoryFallback().catch(() => []);
   }
 
-  // /api/users/me/posts가 비어 있으면, 동아리 게시판 목록에서 다시 찾아본다.
-  // 백엔드가 작성자 정보를 제대로 내려주면 내 글만 필터링하고,
-  // 작성자 정보가 부족하면 적어도 같은 브라우저에서 쓴 로컬 캐시 글을 같이 보여준다.
   if (apiPosts.length === 0) {
     const clubPosts = await fetchPostsFromMyClubs().catch(() => []);
     const myClubPosts = clubPosts.filter(isProbablyMyApiPost);
 
     if (myClubPosts.length > 0) {
       apiPosts = myClubPosts;
-    } else if (localPosts.length === 0) {
-      apiPosts = clubPosts;
+    }
+  }
+
+  if (apiPosts.length === 0) {
+    const allClubPosts = await fetchAllClubPostsForMyPage().catch(() => []);
+    if (allClubPosts.length > 0) {
+      apiPosts = allClubPosts;
     }
   }
 

@@ -597,105 +597,59 @@ function renderClubDetail() {
 const CATEGORY_LABELS = {
   NOTICE: "공지",
   MATERIAL: "자료",
+  RESOURCE: "자료",
   QUESTION: "질문",
 };
 
-const DEFAULT_BOARD_POSTS = [
-  {
-    id: 10,
-    category: "NOTICE",
-    title: "2026년 2학기 아기사자 모집",
-    author: "운영진",
-    date: "2026.07.08",
-    views: 128,
-    content:
-      "안녕하세요, 멋쟁이사자처럼 을지대학교 운영진입니다!\n\n멋쟁이사자처럼에서 함께 성장할 2026년 2학기 아기사자를 모집합니다. 개발에 관심 있는 을지대학교 재학생 여러분의 많은 관심 부탁드립니다.\n\n자세한 사항은 카드뉴스를 참고해주세요!",
-  },
-  {
-    id: 9,
-    category: "QUESTION",
-    title: "비전공자도 지원 가능한가요?",
-    author: "이*현",
-    date: "2026.07.01",
-    views: 8,
-    content: "비전공자도 멋쟁이사자처럼에 지원할 수 있는지 궁금합니다.",
-  },
-  {
-    id: 8,
-    category: "QUESTION",
-    title: "스터디는 온라인으로 참여 가능할까요?",
-    author: "박*진",
-    date: "2026.06.22",
-    views: 13,
-    content: "정기 스터디를 온라인으로도 참여할 수 있나요?",
-  },
-  {
-    id: 7,
-    category: "NOTICE",
-    title: "해커톤 참가 팀 모집 안내",
-    author: "운영진",
-    date: "2026.06.01",
-    views: 65,
-    content: "해커톤 참가 팀 모집 안내입니다. 참여를 원하는 부원은 운영진에게 문의해주세요.",
-  },
-  {
-    id: 6,
-    category: "NOTICE",
-    title: "7~8월 정기 스터디 일정 안내",
-    author: "운영진",
-    date: "2026.06.01",
-    views: 29,
-    content: "7~8월 정기 스터디 일정 안내입니다.",
-  },
-  {
-    id: 5,
-    category: "QUESTION",
-    title: "2학기 아기사자 모집은 언제 하나요?",
-    author: "심*지",
-    date: "2026.05.28",
-    views: 16,
-    content: "2학기 아기사자 모집 일정이 궁금합니다.",
-  },
-  {
-    id: 4,
-    category: "MATERIAL",
-    title: "6~9주차 기초 스터디 자료",
-    author: "운영진",
-    date: "2026.05.22",
-    views: 13,
-    content: "6~9주차 기초 스터디 자료입니다.",
-  },
-  {
-    id: 3,
-    category: "NOTICE",
-    title: "멋사 미니프로젝트 최종 자료",
-    author: "운영진",
-    date: "2026.05.04",
-    views: 65,
-    content: "멋사 미니프로젝트 최종 자료입니다.",
-  },
-  {
-    id: 2,
-    category: "MATERIAL",
-    title: "1~5주차 기초 스터디 자료",
-    author: "운영진",
-    date: "2026.04.18",
-    views: 48,
-    content: "1~5주차 기초 스터디 자료입니다.",
-  },
-  {
-    id: 1,
-    category: "NOTICE",
-    title: "2026년 1학기 아기사자 모집",
-    author: "운영진",
-    date: "2026.03.03",
-    views: 221,
-    content: "2026년 1학기 아기사자 모집 안내입니다.",
-  },
+
+const DEFAULT_BOARD_SEED_TITLES = [
+  "2026년 2학기 아기사자 모집",
+  "비전공자도 지원 가능한가요?",
+  "스터디는 온라인으로 참여 가능할까요?",
+  "해커톤 참가 팀 모집 안내",
+  "7~8월 정기 스터디 일정 안내",
+  "2학기 아기사자 모집은 언제 하나요?",
+  "6~9주차 기초 스터디 자료",
+  "멋사 미니프로젝트 최종 자료",
+  "1~5주차 기초 스터디 자료",
+  "2026년 1학기 아기사자 모집",
 ];
+
+function isDefaultBoardSeedPost(post) {
+  const title = String(post?.title || "").trim();
+  const author = String(post?.author || post?.authorName || post?.writerName || "").trim();
+
+  if (!title) return false;
+  if (DEFAULT_BOARD_SEED_TITLES.includes(title)) return true;
+
+  const currentClubName = String(club?.name || "").trim();
+  const generatedTitles = currentClubName
+    ? [
+        `${currentClubName} 모집 안내`,
+        `${currentClubName} 활동은 어떻게 진행되나요?`,
+        `${currentClubName} 소개 자료`,
+      ]
+    : [];
+
+  if (generatedTitles.includes(title)) return true;
+
+  const seedAuthor = author === "운영진" || author === "이*현" || author === "작성자";
+  if (seedAuthor && /모집 안내$/.test(title)) return true;
+  if (seedAuthor && /활동은 어떻게 진행되나요\?$/.test(title)) return true;
+  if (seedAuthor && /소개 자료$/.test(title)) return true;
+
+  return false;
+}
+
+function removeDefaultBoardSeedPosts(posts = []) {
+  return posts.filter((post) => !isDefaultBoardSeedPost(post));
+}
+
+const DEFAULT_BOARD_POSTS = [];
 
 let boardFilter = "ALL";
 let boardKeyword = "";
+let currentBoardPostId = null;
 
 function todayText() {
   const now = new Date();
@@ -718,81 +672,328 @@ function getCurrentUser() {
   }
 }
 
-function createDefaultBoardPosts() {
-  return [
-    {
-      id: 3,
-      category: "NOTICE",
-      title: `${club.name} 모집 안내`,
-      author: "운영진",
-      date: "2026.07.08",
-      views: 0,
-      content: `${club.name}의 모집 안내입니다. 모집 상태와 자세한 일정은 동아리 운영진 공지를 확인해주세요.`,
-    },
-    {
-      id: 2,
-      category: "QUESTION",
-      title: `${club.name} 활동은 어떻게 진행되나요?`,
-      author: "이*현",
-      date: "2026.07.01",
-      views: 0,
-      content: `${club.name}의 활동 방식과 일정이 궁금합니다.`,
-    },
-    {
-      id: 1,
-      category: "MATERIAL",
-      title: `${club.name} 소개 자료`,
-      author: "운영진",
-      date: "2026.06.22",
-      views: 0,
-      content: `${club.name} 소개 자료입니다.`,
-    },
-  ];
+function safeBoardJsonParse(value, fallback = null) {
+  try {
+    return value ? JSON.parse(value) : fallback;
+  } catch {
+    return fallback;
+  }
 }
 
+function getGlobalBoardPosts() {
+  return safeBoardJsonParse(localStorage.getItem("clubBoardPosts"), []) || [];
+}
+
+function saveGlobalBoardPosts(posts) {
+  localStorage.setItem("clubBoardPosts", JSON.stringify(posts || []));
+}
+
+function getBoardPostId(post) {
+  return String(post?.postId ?? post?.postid ?? post?.id ?? "");
+}
+
+function mapBoardCategoryForApi(category) {
+  return category === "MATERIAL" ? "RESOURCE" : category;
+}
+
+function mapBoardCategoryForView(category) {
+  return category === "RESOURCE" ? "MATERIAL" : category;
+}
+
+function rememberBoardPostForMypage(post) {
+  const clubId = String(post.clubId || club.id);
+  const postId = String(getBoardPostId(post) || `local-${Date.now()}`);
+  const currentUser = getCurrentUser() || {};
+  const record = {
+    ...post,
+    id: postId,
+    postId,
+    clubId,
+    clubName: post.clubName || club.name,
+    category: mapBoardCategoryForApi(post.category || "QUESTION"),
+    detailCategory: post.category || "QUESTION",
+    title: post.title || "제목 없음",
+    content: post.content || "",
+    author: post.author || currentUser.name || "나",
+    authorName: post.authorName || post.writerName || post.author || currentUser.name || "나",
+    writerName: post.writerName || post.authorName || post.author || currentUser.name || "나",
+    authorId: post.authorId || post.userId || currentUser.userId || currentUser.userid || currentUser.id || "",
+    userId: post.userId || post.authorId || currentUser.userId || currentUser.userid || currentUser.id || "",
+    userid: post.userid || currentUser.userid || currentUser.userId || currentUser.id || "",
+    authorEmail: post.authorEmail || post.writerEmail || currentUser.email || "",
+    writerEmail: post.writerEmail || post.authorEmail || currentUser.email || "",
+    email: post.email || currentUser.email || "",
+    viewCount: post.viewCount ?? post.views ?? 0,
+    views: post.views ?? post.viewCount ?? 0,
+    createdAt: post.createdAt || new Date().toISOString(),
+    updatedAt: post.updatedAt || new Date().toISOString(),
+    source: post.source || "club-detail-board-cache",
+    createdByCurrentUser: true,
+    isMine: true,
+  };
+
+  const globalPosts = getGlobalBoardPosts().filter(
+    (item) => !(String(item.clubId) === clubId && String(getBoardPostId(item)) === postId)
+  );
+  globalPosts.unshift(record);
+  saveGlobalBoardPosts(globalPosts);
+
+  const myPosts = safeBoardJsonParse(localStorage.getItem("mypageMyPosts"), []) || [];
+  const filteredMyPosts = myPosts.filter(
+    (item) => !(String(item.clubId) === clubId && String(getBoardPostId(item)) === postId)
+  );
+  filteredMyPosts.unshift(record);
+  localStorage.setItem("mypageMyPosts", JSON.stringify(filteredMyPosts));
+  localStorage.setItem("lastCreatedBoardPost", JSON.stringify(record));
+
+  const createdIds = safeBoardJsonParse(localStorage.getItem("myCreatedBoardPostIds"), []) || [];
+  const nextIds = createdIds.filter(
+    (item) => !(String(item.clubId) === clubId && String(item.postId) === postId)
+  );
+  nextIds.unshift({ clubId, postId, title: record.title, createdAt: record.createdAt });
+  localStorage.setItem("myCreatedBoardPostIds", JSON.stringify(nextIds));
+  sessionStorage.setItem("mypagePostsDirty", "true");
+
+  return record;
+}
+
+
+function getBoardPostById(postId) {
+  return getBoardPosts().find((post) => {
+    return (
+      String(post.id || "") === String(postId) ||
+      String(post.postId || "") === String(postId) ||
+      String(post.postid || "") === String(postId)
+    );
+  });
+}
+
+function removePostFromStorageList(storageKey, clubId, postId) {
+  const list = safeBoardJsonParse(localStorage.getItem(storageKey), []);
+  if (!Array.isArray(list)) return;
+
+  const nextList = list.filter((post) => {
+    const sameClub = String(post.clubId || "") === String(clubId || "");
+    const samePost = String(getBoardPostId(post)) === String(postId || "");
+    return !(sameClub && samePost);
+  });
+
+  localStorage.setItem(storageKey, JSON.stringify(nextList));
+}
+
+function removePostFromAllLocalCaches(post) {
+  if (!post) return;
+
+  const clubId = String(post.clubId || club.id);
+  const postId = String(getBoardPostId(post));
+
+  removePostFromStorageList(`clubBoardPosts_${clubId}`, clubId, postId);
+  removePostFromStorageList("clubBoardPosts", clubId, postId);
+  removePostFromStorageList("mypageMyPosts", clubId, postId);
+
+  const lastPost = safeBoardJsonParse(localStorage.getItem("lastCreatedBoardPost"), null);
+  if (lastPost && String(lastPost.clubId || "") === clubId && String(getBoardPostId(lastPost)) === postId) {
+    localStorage.removeItem("lastCreatedBoardPost");
+  }
+
+  const createdIds = safeBoardJsonParse(localStorage.getItem("myCreatedBoardPostIds"), []);
+  if (Array.isArray(createdIds)) {
+    const nextIds = createdIds.filter((item) => {
+      return !(String(item.clubId || "") === clubId && String(item.postId || "") === postId);
+    });
+    localStorage.setItem("myCreatedBoardPostIds", JSON.stringify(nextIds));
+  }
+
+  sessionStorage.setItem("mypagePostsDirty", "true");
+}
+
+async function deleteCurrentPost() {
+  if (!currentBoardPostId) {
+    alert("삭제할 게시글을 찾을 수 없습니다.");
+    return;
+  }
+
+  const post = getBoardPostById(currentBoardPostId);
+  if (!post) {
+    alert("삭제할 게시글을 찾을 수 없습니다.");
+    showBoardList();
+    return;
+  }
+
+  if (!confirm("이 게시글을 삭제할까요?")) return;
+
+  const deleteButton = document.querySelector("#deletePostBtn");
+  const postId = String(post.postId || post.postid || post.id || currentBoardPostId);
+
+  try {
+    if (deleteButton) {
+      deleteButton.disabled = true;
+      deleteButton.textContent = "삭제 중...";
+    }
+
+    if (typeof apiRequest === "function" && postId && !postId.startsWith("local-")) {
+      await apiRequest(`/api/clubs/${club.id}/posts/${postId}`, {
+        method: "DELETE",
+      });
+    }
+
+    removePostFromAllLocalCaches(post);
+    currentBoardPostId = null;
+    alert("게시글이 삭제되었습니다.");
+    await loadClubBoardPostsFromApi();
+    showBoardList();
+  } catch (error) {
+    console.error(error);
+    alert(error.message || "게시글 삭제에 실패했습니다.");
+  } finally {
+    if (deleteButton) {
+      deleteButton.disabled = false;
+      deleteButton.textContent = "게시글 삭제";
+    }
+  }
+}
+
+function normalizeApiBoardPost(post) {
+  const viewCategory = mapBoardCategoryForView(post.category || "QUESTION");
+  return {
+    ...post,
+    id: String(post.postId || post.postid || post.id || `api-${Date.now()}`),
+    postId: String(post.postId || post.postid || post.id || ""),
+    clubId: String(post.clubId || post.club?.clubId || club.id),
+    clubName: post.clubName || post.club?.name || club.name,
+    category: viewCategory,
+    apiCategory: post.category || mapBoardCategoryForApi(viewCategory),
+    author: post.authorName || post.writerName || post.author || "작성자",
+    date: post.createdAt ? String(post.createdAt).split("T")[0].replaceAll("-", ".") : post.date || todayText(),
+    views: post.viewCount ?? post.views ?? 0,
+    content: post.content || "",
+  };
+}
+
+function mergeBoardPosts(apiPosts = [], localPosts = []) {
+  const map = new Map();
+
+  localPosts.forEach((post, index) => {
+    const key = String(getBoardPostId(post) || `local-${index}`);
+    map.set(key, post);
+  });
+
+  apiPosts.forEach((post, index) => {
+    const key = String(getBoardPostId(post) || `api-${index}`);
+    const previous = map.get(key) || {};
+    map.set(key, { ...previous, ...post });
+  });
+
+  return removeDefaultBoardSeedPosts(Array.from(map.values())).sort((a, b) => String(b.createdAt || b.date || "").localeCompare(String(a.createdAt || a.date || "")));
+}
+
+function getListFromBoardResult(result) {
+  const data = result?.data ?? result ?? [];
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data.content)) return data.content;
+  if (Array.isArray(data.posts)) return data.posts;
+  if (Array.isArray(data.items)) return data.items;
+  if (Array.isArray(data.list)) return data.list;
+  return [];
+}
+
+async function loadClubBoardPostsFromApi() {
+  if (typeof apiRequest !== "function" || !club?.id) return;
+
+  try {
+    const result = await apiRequest(`/api/clubs/${club.id}/posts?page=0&size=100`);
+    const apiPosts = removeDefaultBoardSeedPosts(getListFromBoardResult(result).map(normalizeApiBoardPost));
+    const localPosts = getBoardPosts();
+
+    if (apiPosts.length > 0) {
+      saveBoardPosts(mergeBoardPosts(apiPosts, localPosts));
+    }
+  } catch (error) {
+    console.warn("동아리 게시판 API 조회 실패, 로컬 게시글 사용:", error);
+  }
+}
+
+function createDefaultBoardPosts() {
+  return [];
+}
 function getBoardPosts() {
   try {
     const saved = JSON.parse(localStorage.getItem(BOARD_STORAGE_KEY));
-    if (Array.isArray(saved)) return saved;
+    if (Array.isArray(saved)) {
+      const cleanedPosts = removeDefaultBoardSeedPosts(saved);
+      if (cleanedPosts.length !== saved.length) {
+        localStorage.setItem(BOARD_STORAGE_KEY, JSON.stringify(cleanedPosts));
+      }
+      return cleanedPosts;
+    }
   } catch {
-    // 저장된 게시글이 없거나 깨진 경우 기본 게시글을 다시 생성
+    // 저장된 게시글이 없거나 깨진 경우 빈 목록으로 처리
   }
 
-  const defaultPosts = createDefaultBoardPosts();
-  localStorage.setItem(BOARD_STORAGE_KEY, JSON.stringify(defaultPosts));
-  return defaultPosts;
+  localStorage.setItem(BOARD_STORAGE_KEY, JSON.stringify([]));
+  return [];
 }
-
 function saveBoardPosts(posts) {
-  localStorage.setItem(BOARD_STORAGE_KEY, JSON.stringify(posts));
+  localStorage.setItem(BOARD_STORAGE_KEY, JSON.stringify(removeDefaultBoardSeedPosts(posts)));
 }
 
-function createBoardPost({ category, title, author, content }) {
+function createBoardPost({ category, title, author, content, apiPost = {} }) {
   const posts = getBoardPosts();
   const maxId = posts.reduce((max, post) => Math.max(max, Number(post.id) || 0), 0);
+  const currentUser = getCurrentUser() || {};
+  const postId = String(apiPost.postId || apiPost.postid || apiPost.id || maxId + 1);
+  const createdAt = apiPost.createdAt || new Date().toISOString();
 
   const nextPost = {
-    id: maxId + 1,
+    ...apiPost,
+    id: postId,
+    postId,
+    clubId: String(club.id),
+    clubName: club.name,
     category,
+    apiCategory: mapBoardCategoryForApi(category),
     title,
     author,
-    date: todayText(),
-    views: 0,
+    authorName: apiPost.authorName || apiPost.writerName || author,
+    writerName: apiPost.writerName || apiPost.authorName || author,
+    authorId: apiPost.authorId || apiPost.userId || currentUser.userId || currentUser.userid || currentUser.id || "",
+    userId: apiPost.userId || apiPost.authorId || currentUser.userId || currentUser.userid || currentUser.id || "",
+    userid: apiPost.userid || currentUser.userid || currentUser.userId || currentUser.id || "",
+    authorEmail: apiPost.authorEmail || apiPost.writerEmail || currentUser.email || "",
+    writerEmail: apiPost.writerEmail || apiPost.authorEmail || currentUser.email || "",
+    email: apiPost.email || currentUser.email || "",
+    date: apiPost.createdAt ? String(apiPost.createdAt).split("T")[0].replaceAll("-", ".") : todayText(),
+    createdAt,
+    updatedAt: apiPost.updatedAt || createdAt,
+    views: apiPost.viewCount ?? apiPost.views ?? 0,
+    viewCount: apiPost.viewCount ?? apiPost.views ?? 0,
     content,
+    source: apiPost.source || "club-detail-board-cache",
+    createdByCurrentUser: true,
+    isMine: true,
   };
 
-  posts.unshift(nextPost);
-  saveBoardPosts(posts);
+  const filteredPosts = posts.filter((post) => String(getBoardPostId(post)) !== postId);
+  filteredPosts.unshift(nextPost);
+  saveBoardPosts(filteredPosts);
+  rememberBoardPostForMypage(nextPost);
   return nextPost;
 }
 
 function increasePostViews(postId) {
   const posts = getBoardPosts();
-  const target = posts.find((post) => String(post.id) === String(postId));
+  const target = posts.find((post) => {
+    return (
+      String(post.id || "") === String(postId) ||
+      String(post.postId || "") === String(postId) ||
+      String(post.postid || "") === String(postId)
+    );
+  });
 
   if (!target) return null;
 
-  target.views = (Number(target.views) || 0) + 1;
+  target.views = (Number(target.views ?? target.viewCount) || 0) + 1;
+  target.viewCount = target.views;
   saveBoardPosts(posts);
 
   return target;
@@ -885,7 +1086,7 @@ function setActiveDetailTab(tabName) {
 
   if (tabName === "board") {
     showBoardList();
-    renderBoardPosts();
+    loadClubBoardPostsFromApi().then(() => renderBoardPosts());
   }
 }
 
@@ -893,12 +1094,13 @@ function getFilteredBoardPosts() {
   const keyword = boardKeyword.trim().toLowerCase();
 
   return getBoardPosts().filter((post) => {
-    const matchesCategory = boardFilter === "ALL" ? true : post.category === boardFilter;
+    const postCategoryForFilter = mapBoardCategoryForView(post.category);
+    const matchesCategory = boardFilter === "ALL" ? true : postCategoryForFilter === boardFilter;
     const matchesKeyword =
       keyword.length === 0 ||
       post.title.toLowerCase().includes(keyword) ||
       post.author.toLowerCase().includes(keyword) ||
-      CATEGORY_LABELS[post.category].toLowerCase().includes(keyword);
+      (CATEGORY_LABELS[mapBoardCategoryForView(post.category)] || post.category || "").toLowerCase().includes(keyword);
 
     return matchesCategory && matchesKeyword;
   });
@@ -908,7 +1110,7 @@ function renderBoardPosts() {
   const tbody = document.querySelector("#boardTableBody");
   if (!tbody) return;
 
-  const filteredPosts = getFilteredBoardPosts();
+  const filteredPosts = removeDefaultBoardSeedPosts(getFilteredBoardPosts());
 
   if (filteredPosts.length === 0) {
     tbody.innerHTML = `
@@ -924,7 +1126,7 @@ function renderBoardPosts() {
       return `
         <tr data-post-id="${post.id}">
           <td>${filteredPosts.length - index}</td>
-          <td>${CATEGORY_LABELS[post.category]}</td>
+          <td>${CATEGORY_LABELS[mapBoardCategoryForView(post.category)] || post.category}</td>
           <td><button type="button" class="post-link">${post.title}</button></td>
           <td>${post.author}</td>
           <td>${post.date}</td>
@@ -996,6 +1198,10 @@ function clearBoardForm() {
 }
 
 function showBoardList() {
+  currentBoardPostId = null;
+  const deleteButton = document.querySelector("#deletePostBtn");
+  if (deleteButton) deleteButton.style.display = "none";
+
   document.querySelector("#boardListPanel").style.display = "block";
   document.querySelector("#boardWritePanel").style.display = "none";
   document.querySelector("#boardPostPanel").style.display = "none";
@@ -1014,6 +1220,14 @@ function showWriteForm() {
 function openPostDetail(postId) {
   const post = increasePostViews(postId);
   if (!post) return;
+
+  currentBoardPostId = String(post.id || post.postId || post.postid || postId);
+  const deleteButton = document.querySelector("#deletePostBtn");
+  if (deleteButton) {
+    deleteButton.style.display = "inline-flex";
+    deleteButton.disabled = false;
+    deleteButton.textContent = "게시글 삭제";
+  }
 
   document.querySelector("#postDetailTitle").textContent = post.title;
   document.querySelector("#postDetailAuthor").textContent = post.author;
@@ -1039,6 +1253,48 @@ function openPostDetail(postId) {
   document.querySelector("#boardListPanel").style.display = "none";
   document.querySelector("#boardWritePanel").style.display = "none";
   document.querySelector("#boardPostPanel").style.display = "block";
+}
+
+
+function activateBoardTabFromLink() {
+  document.querySelectorAll("[data-detail-tab]").forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.detailTab === "board");
+  });
+
+  document.querySelectorAll("[data-detail-panel]").forEach((panel) => {
+    panel.classList.toggle("is-active", panel.dataset.detailPanel === "board");
+  });
+
+  showBoardList();
+}
+
+async function openInitialBoardPostFromUrl() {
+  const requestedTab = queryParams.get("tab");
+  const requestedPostId = queryParams.get("postId");
+
+  if (requestedTab !== "board" && !requestedPostId) {
+    return false;
+  }
+
+  activateBoardTabFromLink();
+  await loadClubBoardPostsFromApi();
+  renderBoardPosts();
+
+  if (requestedPostId) {
+    const targetPost = getBoardPosts().find((post) => {
+      return (
+        String(post.id || "") === String(requestedPostId) ||
+        String(post.postId || "") === String(requestedPostId) ||
+        String(post.postid || "") === String(requestedPostId)
+      );
+    });
+
+    if (targetPost) {
+      openPostDetail(targetPost.id || targetPost.postId || targetPost.postid || requestedPostId);
+    }
+  }
+
+  return true;
 }
 
 function initAdminTools() {
@@ -1098,16 +1354,18 @@ document.querySelector("#openWriteForm")?.addEventListener("click", showWriteFor
 document.querySelector("#closeWriteForm")?.addEventListener("click", showBoardList);
 document.querySelector("#cancelWrite")?.addEventListener("click", showBoardList);
 document.querySelector("#closePostDetail")?.addEventListener("click", showBoardList);
+document.querySelector("#deletePostBtn")?.addEventListener("click", deleteCurrentPost);
 document.querySelector("#detailScrapBtn")?.addEventListener("click", toggleScrap);
 
 document.querySelector("#postContent")?.addEventListener("input", (event) => {
   document.querySelector("#postCount").textContent = `${event.target.value.length}/2000자`;
 });
 
-document.querySelector(".board-form")?.addEventListener("submit", (event) => {
+document.querySelector(".board-form")?.addEventListener("submit", async (event) => {
   event.preventDefault();
 
   const activeCategory = document.querySelector("[data-write-category].is-active")?.dataset.writeCategory || "QUESTION";
+  const apiCategory = mapBoardCategoryForApi(activeCategory);
   const title = document.querySelector("#postTitle").value.trim();
   const content = document.querySelector("#postContent").value.trim();
   const author = document.querySelector("#postAuthor").value.trim() || "익명";
@@ -1117,21 +1375,47 @@ document.querySelector(".board-form")?.addEventListener("submit", (event) => {
     return;
   }
 
-  /*
-    나중에 백엔드 연결:
-    POST /api/clubs/{clubId}/boards
-    {
-      category: activeCategory,
-      title,
-      content
-    }
-  */
+  const submitButton = event.submitter || document.querySelector(".board-form button[type='submit']");
+  let apiPost = {};
+  let savedOnServer = false;
 
-  const post = createBoardPost({
+  try {
+    if (submitButton) {
+      submitButton.disabled = true;
+      submitButton.textContent = "등록 중...";
+    }
+
+    if (typeof apiRequest === "function") {
+      const result = await apiRequest(`/api/clubs/${club.id}/posts`, {
+        method: "POST",
+        body: {
+          category: apiCategory,
+          status: "PUBLISHED",
+          title,
+          content,
+          attachmentUrls: [],
+        },
+      });
+
+      apiPost = result?.data || {};
+      savedOnServer = true;
+    }
+  } catch (error) {
+    console.warn("게시글 서버 저장 실패, 로컬에 우선 저장합니다:", error);
+    alert(error.message || "서버 저장은 실패했지만, 이 브라우저에는 게시물이 저장됩니다.");
+  } finally {
+    if (submitButton) {
+      submitButton.disabled = false;
+      submitButton.textContent = "등록하기";
+    }
+  }
+
+  createBoardPost({
     category: activeCategory,
     title,
     author,
     content,
+    apiPost,
   });
 
   clearBoardForm();
@@ -1141,11 +1425,8 @@ document.querySelector(".board-form")?.addEventListener("submit", (event) => {
     item.classList.toggle("is-active", item.dataset.boardFilter === "ALL");
   });
 
-  alert("게시글이 등록되었습니다.");
+  alert(savedOnServer ? "게시글이 등록되었습니다." : "게시글이 로컬에 저장되었습니다.");
   showBoardList();
-
-  // 등록한 글을 바로 확인하고 싶으면 아래 줄을 켜면 됨.
-  // openPostDetail(post.id);
 });
 
 const detailApplyBtnGuard = document.querySelector(".detail-apply-btn");
@@ -1169,9 +1450,14 @@ async function initClubDetailPage() {
   renderClubDetail();
   updateDetailScrapButton();
   initAdminTools();
+  await loadClubBoardPostsFromApi();
   renderBoardPosts();
   renderPostCategoryTabs();
-  showBoardList();
+
+  const openedFromUrl = await openInitialBoardPostFromUrl();
+  if (!openedFromUrl) {
+    showBoardList();
+  }
 }
 
 initClubDetailPage();

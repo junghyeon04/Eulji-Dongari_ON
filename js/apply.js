@@ -233,6 +233,103 @@ document.querySelector("#applySearchInput")?.addEventListener("input", (event) =
   renderApplyClubs();
 });
 
+
+const APPLICATION_CACHE_KEY = "clubApplicationCache";
+
+function safeApplyJsonParse(value, fallback = null) {
+  try {
+    return value ? JSON.parse(value) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function getApplicationCache() {
+  return safeApplyJsonParse(localStorage.getItem(APPLICATION_CACHE_KEY), []) || [];
+}
+
+function saveApplicationCache(applications) {
+  localStorage.setItem(APPLICATION_CACHE_KEY, JSON.stringify(applications || []));
+}
+
+function getCurrentApplicantSnapshot() {
+  const storedUser =
+    safeApplyJsonParse(sessionStorage.getItem("currentUser"), null) ||
+    safeApplyJsonParse(localStorage.getItem("currentUser"), null) ||
+    safeApplyJsonParse(localStorage.getItem("registeredUser"), null) ||
+    {};
+
+  return {
+    userId: storedUser.userId || storedUser.userid || storedUser.id || "",
+    name: document.querySelector("#applicantName")?.value?.trim() || storedUser.name || "",
+    studentId:
+      document.querySelector("#applicantStudentId")?.value?.trim() ||
+      storedUser.studentId ||
+      storedUser.studentid ||
+      "",
+    department:
+      document.querySelector("#applicantDepartment")?.value?.trim() ||
+      storedUser.department ||
+      "",
+    email: storedUser.email || "",
+    phone: document.querySelector("#applicantPhone")?.value?.trim() || "",
+  };
+}
+
+function normalizeApplicationResponseId(result) {
+  const data = result?.data || result || {};
+  return String(
+    data.applicationId ||
+      data.applicationid ||
+      data.id ||
+      data.application?.applicationId ||
+      data.application?.id ||
+      ""
+  );
+}
+
+function saveSubmittedApplicationLocally(result, club, answers) {
+  const applicant = getCurrentApplicantSnapshot();
+  const now = new Date().toISOString();
+  const applicationId = normalizeApplicationResponseId(result) || `local-${club.id}-${Date.now()}`;
+  const record = {
+    applicationId,
+    id: applicationId,
+    clubId: String(club.id),
+    clubName: club.name,
+    clubType: club.type,
+    studentName: applicant.name,
+    name: applicant.name,
+    studentId: applicant.studentId,
+    studentid: applicant.studentId,
+    department: applicant.department,
+    email: applicant.email,
+    phone: applicant.phone,
+    status: "PENDING",
+    answers,
+    content: answers.map((item) => `${item.label}: ${item.value}`).join("\n\n"),
+    createdAt: now,
+    appliedAt: now,
+    source: applicationId.startsWith("local-") ? "apply-local-cache" : "apply-api-cache",
+  };
+
+  const applications = getApplicationCache().filter((item) => {
+    const sameId = String(item.applicationId || item.id || "") === String(applicationId);
+    const sameStudentClub =
+      String(item.clubId || item.club?.clubId || "") === String(club.id) &&
+      String(item.studentId || item.studentid || "") === String(applicant.studentId || "") &&
+      String(item.status || "PENDING") === "PENDING";
+    return !sameId && !sameStudentClub;
+  });
+
+  applications.unshift(record);
+  saveApplicationCache(applications);
+  localStorage.setItem("latestSubmittedApplication", JSON.stringify(record));
+  sessionStorage.setItem("applicationsDirty", "true");
+
+  return record;
+}
+
 document.querySelector("#clubApplicationForm")?.addEventListener("submit", async (event) => {
   event.preventDefault();
 
@@ -259,26 +356,40 @@ document.querySelector("#clubApplicationForm")?.addEventListener("submit", async
       submitButton.textContent = "제출 중...";
     }
 
-    await apiRequest(`/api/clubs/${applyState.selectedClubId}/applications`, {
+    const selectedClub = applyClubs.find((club) => String(club.id) === String(applyState.selectedClubId));
+    const answers = [
+      {
+        questionId: 1,
+        label: "지원동기",
+        value: reason,
+        values: [reason],
+      },
+      {
+        questionId: 2,
+        label: "자기소개",
+        value: intro,
+        values: [intro],
+      },
+    ];
+
+    const result = await apiRequest(`/api/clubs/${applyState.selectedClubId}/applications`, {
       method: "POST",
       body: {
-        answers: [
-          {
-            questionId: 1,
-            values: [reason],
-          },
-          {
-            questionId: 2,
-            values: [intro],
-          },
-        ],
+        answers: answers.map((item) => ({
+          questionId: item.questionId,
+          values: item.values,
+        })),
       },
     });
 
+    if (selectedClub) {
+      saveSubmittedApplicationLocally(result, selectedClub, answers);
+    }
+
     localStorage.setItem("latestApplicationExtra", JSON.stringify({ reason, intro }));
 
-    alert("지원서가 제출되었습니다.");
-    window.location.href = "./mypage.html";
+    alert("지원서가 제출되었습니다. 운영진 지원자 현황에서 확인할 수 있습니다.");
+    window.location.href = "./mypage.html?tab=applications";
   } catch (error) {
     console.error(error);
     alert(error.message || "지원서 제출에 실패했습니다. 지원 질문 ID가 백엔드와 다를 수 있으니 API 명세서를 확인해주세요.");
