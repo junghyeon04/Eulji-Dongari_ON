@@ -2696,16 +2696,23 @@ document.querySelector("#changePasswordBtn")?.addEventListener("click", async ()
 
 document.querySelector("#withdrawAccountBtn")?.addEventListener("click", async () => {
   const user = getDisplayUser() || {};
-  const emailText = user.email ? `\n\n삭제 계정: ${user.email}` : "";
+  const emailText = user.email ? `\n\n탈퇴 계정: ${user.email}` : "";
   const ok = confirm(
     "정말 회원 탈퇴를 진행할까요?\n" +
-      "탈퇴하면 현재 계정의 로그인 정보, 회원가입 유형, 스크랩/내 게시물 캐시가 삭제됩니다." +
+      "탈퇴가 완료되면 로그인 정보가 삭제되고 메인 화면으로 이동합니다." +
       emailText
   );
 
   if (!ok) return;
 
-  const secondOk = confirm("한 번 더 확인합니다. 정말 계정을 삭제할까요?");
+  const password = prompt("회원 탈퇴를 위해 현재 비밀번호를 입력해주세요.");
+  if (password === null) return;
+  if (!password.trim()) {
+    alert("현재 비밀번호를 입력해야 회원 탈퇴가 가능합니다.");
+    return;
+  }
+
+  const secondOk = confirm("한 번 더 확인합니다. 정말 계정을 탈퇴할까요?");
   if (!secondOk) return;
 
   const button = document.querySelector("#withdrawAccountBtn");
@@ -2715,20 +2722,12 @@ document.querySelector("#withdrawAccountBtn")?.addEventListener("click", async (
   }
 
   try {
-    const result = typeof deleteCurrentAccount === "function"
-      ? await deleteCurrentAccount()
-      : null;
-
-    if (result?.serverDeleted) {
-      alert("회원 탈퇴가 완료되었습니다. 계정 정보가 삭제되었습니다.");
-    } else {
-      alert(
-        "회원 탈퇴 처리가 완료되었습니다.\n\n" +
-          "현재 백엔드에 실제 DB 계정 삭제 API가 없거나 연결되지 않아, " +
-          "프론트에서는 이 브라우저의 계정 정보를 삭제하고 같은 이메일 로그인을 막도록 처리했습니다."
-      );
+    if (typeof deleteCurrentAccount !== "function") {
+      throw new Error("회원 탈퇴 API 연결 함수를 찾을 수 없습니다.");
     }
 
+    await deleteCurrentAccount(password);
+    alert("회원 탈퇴가 완료되었습니다.");
     window.location.href = "./index.html";
   } catch (error) {
     console.error(error);

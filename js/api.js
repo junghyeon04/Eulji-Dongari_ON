@@ -672,71 +672,44 @@ function removeAccountScopedLocalData(email) {
   localStorage.removeItem("signupStatus");
 }
 
-async function requestAccountDeletionOnServer() {
+async function requestAccountDeletionOnServer(password) {
   const token = getAuthToken();
-  const endpoints = [
-    { endpoint: "/api/users/me", method: "DELETE" },
-    { endpoint: "/api/auth/me", method: "DELETE" },
-    { endpoint: "/api/members/me", method: "DELETE" },
-  ];
+  const trimmedPassword = String(password || "").trim();
 
-  let unsupportedStatus = null;
-
-  for (const item of endpoints) {
-    try {
-      const response = await fetch(`${API_BASE_URL}${item.endpoint}`, {
-        method: item.method,
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-      });
-
-      const text = await response.text();
-      let result = {};
-      try { result = text ? JSON.parse(text) : {}; } catch { result = { message: text }; }
-
-      if (response.ok) {
-        return { serverDeleted: true, endpoint: item.endpoint, result };
-      }
-
-      if ([404, 405].includes(response.status)) {
-        unsupportedStatus = response.status;
-        continue;
-      }
-
-      if (response.status === 401 || response.status === 403) {
-        throw new Error(result.message || "로그인이 만료되었거나 권한이 없습니다. 다시 로그인한 뒤 시도해주세요.");
-      }
-
-      throw new Error(result.message || result.error || "회원 탈퇴 요청에 실패했습니다.");
-    } catch (error) {
-      if (error.name === "TypeError") {
-        unsupportedStatus = 0;
-        continue;
-      }
-      throw error;
-    }
+  if (!trimmedPassword) {
+    throw new Error("회원 탈퇴를 하려면 현재 비밀번호를 입력해야 합니다.");
   }
 
-  return { serverDeleted: false, unsupportedStatus };
+  if (!token) {
+    throw new Error("로그인이 필요합니다. 다시 로그인한 뒤 시도해주세요.");
+  }
+
+  const response = await fetch(`${API_BASE_URL}/api/users/me`, {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ password: trimmedPassword }),
+  });
+
+  const text = await response.text();
+  let result = {};
+  try { result = text ? JSON.parse(text) : {}; } catch { result = { message: text }; }
+
+  if (!response.ok) {
+    throw new Error(result.message || result.error || "회원 탈퇴 요청에 실패했습니다.");
+  }
+
+  return { serverDeleted: true, endpoint: "/api/users/me", result };
 }
 
-async function deleteCurrentAccount() {
+async function deleteCurrentAccount(password) {
   const user = getStoredCurrentUser() || {};
   const email = normalizeOperatorEmail(user.email || localStorage.getItem("lastLoginEmail") || "");
-  const serverResult = await requestAccountDeletionOnServer();
+  const serverResult = await requestAccountDeletionOnServer(password);
 
   removeAccountScopedLocalData(email);
-
-  if (!serverResult.serverDeleted && email) {
-    markAccountDeletedForEmail(email, {
-      localOnly: true,
-      reason: "BACKEND_DELETE_API_UNSUPPORTED",
-      status: serverResult.unsupportedStatus,
-    });
-  }
-
   clearAuthSession();
   return { ...serverResult, email };
 }
