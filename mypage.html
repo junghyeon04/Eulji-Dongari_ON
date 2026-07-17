@@ -382,17 +382,77 @@
         </div>
 
         <div class="dynamic-panel" data-panel="operator-activity-records">
-          <section class="mypage-card content-section operator-manage-section">
-            <div class="section-head">
-              <h2>활동 기록</h2>
+          <section class="mypage-card content-section operator-manage-section operator-activity-manage-section">
+            <div class="section-head operator-activity-manage-head">
+              <div>
+                <h2>활동 관리</h2>
+                <p id="operatorActivityManageSummary">운영 동아리 활동 정보를 불러오는 중입니다.</p>
+              </div>
+              <button type="button" class="more-link operator-activity-refresh-btn" id="operatorActivityRefreshBtn">새로고침</button>
             </div>
-            <div class="operator-manage-box">
-              <h3>활동 기록 관리</h3>
-              <p>활동 기록 목록/상세 조회, 작성, 수정, 삭제, 이미지 URL 관리를 할 수 있습니다.</p>
-              <div class="operator-manage-actions">
-                <a href="./activity-records.html" class="operator-quick-link">활동 기록 관리 열기</a>
+
+            <div class="operator-manage-box operator-activity-info-box">
+              <div class="operator-activity-box-head">
+                <div>
+                  <h3 id="operatorActivityClubName">운영 동아리 활동 정보</h3>
+                  <p>동아리 상세 페이지의 활동 탭에 보이는 주요 활동, 연간 활동 정보, 활동 사진을 관리할 수 있습니다.</p>
+                </div>
+                <a href="./club-detail.html?tab=activity" class="operator-quick-link secondary" id="operatorActivityOpenDetailBtn">상세 페이지 보기</a>
+              </div>
+
+              <form id="operatorActivityInfoForm" class="operator-activity-info-form">
+                <label>
+                  <span>주요 활동</span>
+                  <textarea id="operatorMajorActivitiesInput" rows="5" placeholder="연기 연습&#10;뮤지컬 넘버 연습&#10;정기 공연 준비"></textarea>
+                </label>
+                <label>
+                  <span>연간 활동 정보</span>
+                  <textarea id="operatorAnnualActivitiesInput" rows="5" placeholder="7~8월 | 신입 부원 모집&#10;9월 | 대본 리딩&#10;10월 | 중간 공연 준비&#10;11~12월 | 정기 공연"></textarea>
+                </label>
+                <button type="submit" class="operator-btn primary">주요 활동 / 연간 활동 저장</button>
+              </form>
+            </div>
+
+            <div class="operator-activity-manage-grid">
+              <div class="operator-manage-box operator-activity-photo-box">
+                <div class="operator-activity-box-head compact">
+                  <div>
+                    <h3>활동 사진 추가</h3>
+                    <p>운영진이 직접 사진 파일을 올릴 수 있습니다. JPG, PNG, WebP / 최대 10MB까지 가능합니다.</p>
+                  </div>
+                </div>
+
+                <form id="operatorActivityPhotoForm" class="operator-activity-record-form">
+                  <label>
+                    <span>사진 제목</span>
+                    <input type="text" id="operatorActivityPhotoTitle" placeholder="예: 앱 개발 스터디" required />
+                  </label>
+                  <label>
+                    <span>간단한 설명</span>
+                    <textarea id="operatorActivityPhotoDescription" rows="5" placeholder="사진을 눌렀을 때 보여줄 설명을 입력하세요." required></textarea>
+                  </label>
+                  <label>
+                    <span>사진 파일</span>
+                    <input type="file" id="operatorActivityPhotoFiles" accept="image/jpeg,image/png,image/webp" multiple required />
+                  </label>
+                  <button type="submit" class="operator-btn primary full">활동 사진 추가</button>
+                </form>
+              </div>
+
+            </div>
+
+            <div class="operator-manage-box operator-activity-photo-box">
+              <div class="operator-activity-box-head compact">
+                <div>
+                  <h3>활동 사진 관리</h3>
+                  <p>사진이나 제목을 누르면 설명을 볼 수 있고, 필요 없는 사진은 삭제할 수 있습니다.</p>
+                </div>
+              </div>
+              <div id="operatorActivityPhotoGrid" class="operator-activity-photo-grid">
+                <div class="mypage-empty-line">등록된 활동 사진이 없습니다.</div>
               </div>
             </div>
+
           </section>
         </div>
 

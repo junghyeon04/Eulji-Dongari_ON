@@ -403,6 +403,7 @@ function mapApiClubToDetail(apiClub) {
     activityPeriod: fallback.activityPeriod || "학기 중 상시 활동",
     schedule: apiClub.activityInfo || fallback.schedule || "동아리별 상이",
     recruitContent: apiClub.activityInfo || fallback.recruitContent || `${apiClub.name}의 주요 활동 진행`,
+    activityInfo: apiClub.activityInfo || fallback.activityInfo || "",
     recruitProcess: fallback.recruitProcess || "지원서 접수 → 운영진 확인 → 결과 안내",
     phone: fallback.phone || "010-0000-0000",
     email: fallback.email || "club@eulji.ac.kr",
@@ -411,6 +412,291 @@ function mapApiClubToDetail(apiClub) {
     tags: fallback.tags || [`#${CATEGORY_MAP[apiClub.category] || "동아리"}`, "#을지대학교"],
     activities: fallback.activities || [apiClub.activityInfo || "동아리 활동"],
   };
+}
+
+
+function escapeDetailHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function parseActivityInfoText(value) {
+  const text = String(value || "").trim();
+  const result = { major: [], annual: [] };
+  if (!text) return result;
+
+  let mode = "major";
+  text.split(/\r?\n/).forEach((rawLine) => {
+    const line = rawLine.trim();
+    if (!line) return;
+
+    const normalized = line.replaceAll(" ", "");
+    if (/^\[?주요활동\]?$/.test(normalized)) {
+      mode = "major";
+      return;
+    }
+    if (/^\[?연간활동\]?$/.test(normalized) || /^\[?연간활동정보\]?$/.test(normalized)) {
+      mode = "annual";
+      return;
+    }
+
+    if (mode === "annual") {
+      const [period, ...rest] = line.split("|").map((part) => part.trim());
+      if (period && rest.length) {
+        result.annual.push({ period, title: rest.join(" | ") });
+      } else {
+        const matched = line.match(/^(.+?)\s*[-–—:]\s*(.+)$/);
+        if (matched) {
+          result.annual.push({ period: matched[1].trim(), title: matched[2].trim() });
+        } else {
+          result.annual.push({ period: "-", title: line });
+        }
+      }
+      return;
+    }
+
+    result.major.push(line.replace(/^[-•]\s*/, ""));
+  });
+
+  return result;
+}
+
+function getRecordsArray(data) {
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.content)) return data.content;
+  if (Array.isArray(data?.records)) return data.records;
+  if (Array.isArray(data?.data)) return data.data;
+  return [];
+}
+
+function parseDetailActivityAnnualLine(line) {
+  const clean = String(line || "").trim();
+  if (!clean) return null;
+
+  const [period, ...rest] = clean.split("|").map((part) => part.trim());
+  if (period && rest.length) return { period, title: rest.join(" | ") };
+
+  const matched = clean.match(/^(.+?)\s*[-–—:]\s*(.+)$/);
+  if (matched) return { period: matched[1].trim(), title: matched[2].trim() };
+
+  return { period: "-", title: clean };
+}
+
+function getDetailActivityStorageKey(clubId = club?.id) {
+  return `operatorActivityData_${String(clubId || "unknown")}`;
+}
+
+function getDetailActivityLocalData() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(getDetailActivityStorageKey()) || "{}");
+    return {
+      major: parsed.major || "",
+      annual: parsed.annual || "",
+      photos: Array.isArray(parsed.photos) ? parsed.photos : [],
+      reviews: Array.isArray(parsed.reviews) ? parsed.reviews : [],
+    };
+  } catch {
+    return { major: "", annual: "", photos: [], reviews: [] };
+  }
+}
+
+function getDetailActivityImageUrls(record) {
+  const raw = record?.imageUrls ?? record?.images ?? record?.imageUrl ?? record?.thumbnailUrl ?? [];
+  if (Array.isArray(raw)) return raw.map((url) => String(url || "").trim()).filter(Boolean);
+  if (typeof raw === "string") {
+    return raw
+      .split(/[\n,]/)
+      .map((url) => url.trim())
+      .filter(Boolean);
+  }
+  return [];
+}
+
+function renderClubActivityInfo() {
+  const localData = getDetailActivityLocalData();
+  const parsed = parseActivityInfoText(club.activityInfo || club.schedule || "");
+
+  const majorLines = localData.major
+    ? localData.major.split(/\r?\n/).map((line) => line.trim()).filter(Boolean)
+    : parsed.major;
+
+  const annualItems = localData.annual
+    ? localData.annual.split(/\r?\n/).map(parseDetailActivityAnnualLine).filter(Boolean)
+    : parsed.annual;
+
+  const activityList = document.querySelector(".activity-list");
+  if (activityList) {
+    if (majorLines.length) {
+      activityList.innerHTML = majorLines.map((activity) => `<li>${escapeDetailHtml(activity)}</li>`).join("");
+    } else {
+      activityList.innerHTML = `<li class="empty-activity-text">등록된 주요 활동이 없습니다.</li>`;
+    }
+  }
+
+  const timeline = document.querySelector(".timeline");
+  if (timeline) {
+    if (annualItems.length) {
+      timeline.innerHTML = annualItems
+        .map((item) => {
+          const period = String(item.period || "").trim();
+          const title = String(item.title || "").trim();
+          if (!period || period === "-") {
+            return `<div class="timeline-title-only"><span>${escapeDetailHtml(title || period)}</span></div>`;
+          }
+          return `<div><strong>${escapeDetailHtml(period)}</strong><span>${escapeDetailHtml(title)}</span></div>`;
+        })
+        .join("");
+    } else {
+      timeline.innerHTML = `<p class="empty-activity-text">등록된 연간 활동 정보가 없습니다.</p>`;
+    }
+  }
+}
+
+function closeDetailActivityPhotoModal() {
+  const modal = document.querySelector(".activity-photo-modal");
+  if (modal) modal.remove();
+  document.body.classList.remove("activity-modal-open");
+}
+
+function showDetailActivityPhotoDescription(photo) {
+  if (!photo) return;
+  closeDetailActivityPhotoModal();
+
+  const modal = document.createElement("div");
+  modal.className = "activity-photo-modal";
+  modal.innerHTML = `
+    <div class="activity-photo-modal-backdrop" data-close-activity-modal></div>
+    <article class="activity-photo-modal-card" role="dialog" aria-modal="true" aria-label="활동 사진 설명">
+      <button type="button" class="activity-photo-modal-close" data-close-activity-modal aria-label="닫기">×</button>
+      ${
+        photo.imageUrl
+          ? `<img src="${escapeDetailHtml(photo.imageUrl)}" alt="${escapeDetailHtml(photo.title || "활동 사진")}" />`
+          : ""
+      }
+      <div class="activity-photo-modal-body">
+        <h3>${escapeDetailHtml(photo.title || "활동 사진")}</h3>
+        <p>${escapeDetailHtml(photo.description || photo.content || "등록된 설명이 없습니다.")}</p>
+      </div>
+    </article>
+  `;
+
+  modal.addEventListener("click", (event) => {
+    if (event.target.closest("[data-close-activity-modal]")) {
+      closeDetailActivityPhotoModal();
+    }
+  });
+
+  document.body.appendChild(modal);
+  document.body.classList.add("activity-modal-open");
+}
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") closeDetailActivityPhotoModal();
+});
+
+function bindDetailActivityPhotoClicks(photoItems) {
+  const photoGrid = document.querySelector(".activity-photo-grid");
+  if (!photoGrid || photoGrid.dataset.photoClickBound === "true") return;
+  photoGrid.dataset.photoClickBound = "true";
+
+  photoGrid.addEventListener("click", (event) => {
+    const card = event.target.closest("[data-activity-photo-index]");
+    if (!card) return;
+    const index = Number(card.dataset.activityPhotoIndex);
+    const latest = window.__detailActivityPhotoItems || photoItems || [];
+    showDetailActivityPhotoDescription(latest[index]);
+  });
+}
+
+async function loadClubActivityRecordsForDetail() {
+  const photoGrid = document.querySelector(".activity-photo-grid");
+  if (!photoGrid || !club?.id) return;
+
+  const localData = getDetailActivityLocalData();
+  let photoItems = (localData.photos || []).map((photo) => ({
+    title: photo.title || "활동 사진",
+    description: photo.description || "",
+    imageUrl: photo.imageUrl || "",
+    createdAt: photo.createdAt || "",
+    isLocal: true,
+  }));
+
+  photoGrid.innerHTML = `<p class="empty-activity-text">활동 사진을 불러오는 중입니다...</p>`;
+
+  if (typeof apiRequest === "function") {
+    try {
+      const result = await apiRequest(`/api/clubs/${club.id}/records`);
+      const records = getRecordsArray(result?.data ?? result);
+      const backendPhotos = records.flatMap((record) => {
+        const imageUrls = getDetailActivityImageUrls(record);
+        return imageUrls.map((url) => ({
+          title: record.title || "활동 사진",
+          description: record.content || record.description || "",
+          imageUrl: url,
+          createdAt: record.createdAt || record.updatedAt || "",
+          isLocal: false,
+        }));
+      });
+      photoItems = [...photoItems, ...backendPhotos];
+    } catch (error) {
+      console.warn("활동 기록 조회 실패, 로컬 활동 사진으로 대체:", error);
+    }
+  }
+
+  if (!photoItems.length) {
+    photoGrid.innerHTML = `<p class="empty-activity-text">등록된 활동 사진이 없습니다.</p>`;
+    window.__detailActivityPhotoItems = [];
+    bindDetailActivityPhotoClicks([]);
+    return;
+  }
+
+  window.__detailActivityPhotoItems = photoItems.slice(0, 9);
+  photoGrid.innerHTML = window.__detailActivityPhotoItems
+    .map((photo, index) => {
+      const date = String(photo.createdAt || "").slice(0, 10).replaceAll("-", ".");
+      return `
+        <article class="activity-record-card clickable" data-activity-photo-index="${index}">
+          ${
+            photo.imageUrl
+              ? `<img class="activity-photo" src="${escapeDetailHtml(photo.imageUrl)}" alt="${escapeDetailHtml(photo.title || "활동 사진")}" />`
+              : `<div class="activity-photo is-empty"></div>`
+          }
+          <h3>${escapeDetailHtml(photo.title || "활동 사진")}</h3>
+          <p>${escapeDetailHtml(date || "사진을 누르면 설명을 볼 수 있습니다.")}</p>
+        </article>
+      `;
+    })
+    .join("");
+
+  bindDetailActivityPhotoClicks(window.__detailActivityPhotoItems);
+}
+
+function renderClubMemberReviews() {
+  const reviewGrid = document.querySelector(".review-grid");
+  if (!reviewGrid) return;
+
+  const localData = getDetailActivityLocalData();
+  const reviews = localData.reviews || [];
+
+  if (!reviews.length) {
+    reviewGrid.innerHTML = `<p class="empty-activity-text">등록된 부원 후기가 없습니다.</p>`;
+    return;
+  }
+
+  reviewGrid.innerHTML = reviews
+    .map((review) => {
+      return `
+        <article>
+          <strong>${escapeDetailHtml(review.author || "부원")}</strong>
+          <p>${escapeDetailHtml(review.content || "")}</p>
+        </article>
+      `;
+    })
+    .join("");
 }
 
 async function loadClubDetailFromApi() {
@@ -564,12 +850,8 @@ function renderClubDetail() {
     }
   }
 
-  const activityList = document.querySelector(".activity-list");
-  if (activityList) {
-    activityList.innerHTML = (club.activities || ["정기 모임", "동아리 활동", "친목 및 교류"])
-      .map((activity) => `<li>${activity}</li>`)
-      .join("");
-  }
+  renderClubActivityInfo();
+  renderClubMemberReviews();
 
   const memberTitle = document.querySelector(".member-contact-panel h2");
   const memberRows = document.querySelectorAll(".member-contact-list div");
@@ -1357,7 +1639,7 @@ function initAdminTools() {
       }
 
       if (action === "record") {
-        alert("나중에 POST /api/clubs/{clubId}/records로 활동 기록을 추가하면 됩니다.");
+        location.href = `./mypage.html?tab=operator-activity-records&clubId=${encodeURIComponent(club.id)}`;
       }
 
       if (action === "delete") {
@@ -1493,6 +1775,7 @@ async function initClubDetailPage() {
   }
 
   renderClubDetail();
+  await loadClubActivityRecordsForDetail();
   updateDetailScrapButton();
   initAdminTools();
   await loadClubBoardPostsFromApi();

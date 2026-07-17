@@ -35,6 +35,26 @@
         <button type="button" id="loadRecordsBtn" class="operator-btn primary">목록 조회</button>
       </div>
 
+      <section class="activity-info-editor">
+        <div class="operator-section-head">
+          <div>
+            <h2>주요 활동 / 연간 활동 정보</h2>
+            <p>동아리 상세 페이지의 활동 탭에 표시되는 정보를 직접 수정합니다.</p>
+          </div>
+        </div>
+        <form id="clubActivityInfoForm" class="post-form activity-info-form">
+          <label>
+            <span>주요 활동</span>
+            <textarea id="majorActivitiesInput" rows="5" placeholder="정기 스터디 및 세미나&#10;팀 프로젝트 활동&#10;해커톤 참여"></textarea>
+          </label>
+          <label>
+            <span>연간 활동 정보</span>
+            <textarea id="annualActivitiesInput" rows="5" placeholder="7~8월 | 아기사자 모집&#10;9월 | 스터디 & 팀 프로젝트&#10;10월 | 공모전"></textarea>
+          </label>
+          <button type="submit" class="operator-btn primary">활동 정보 저장</button>
+        </form>
+      </section>
+
       <div class="record-layout">
         <section class="record-list-area">
           <div id="recordSummary" class="operator-summary">동아리를 선택하면 활동 기록 목록이 표시됩니다.</div>
