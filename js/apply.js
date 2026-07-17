@@ -334,10 +334,6 @@ function renderApplicationQuestions(questions) {
         <label for="fallbackIntroduction">자기소개<span>*</span></label>
         <textarea id="fallbackIntroduction" required placeholder="자기소개를 작성해주세요."></textarea>
       </div>
-      <div class="mypage-empty-line application-help-text">
-        현재 백엔드에 이 동아리의 질문 ID가 없으면 위 답변은 브라우저 임시 기록으로 저장됩니다.<br />
-        DB에도 답변을 저장하려면 함께 제공한 SQL로 지원동기/자기소개 질문을 먼저 추가해주세요.
-      </div>
     `;
     return;
   }

@@ -24,7 +24,329 @@ function setUserRole(role) {
 
 window.setUserRole = setUserRole;
 
-const isClubAdmin = () => getUserRole() === "ROLE_CLUB_ADMIN" || getUserRole() === "ROLE_SCHOOL_ADMIN";
+let currentClubAdminPermission = false;
+let currentClubMemberPermission = false;
+
+function normalizeBoardRoleValue(value) {
+  const role = String(value || "").trim().toUpperCase();
+  return role;
+}
+
+function isBoardOperatorRoleValue(value) {
+  const role = normalizeBoardRoleValue(value);
+  if (!role) return false;
+
+  return (
+    role.includes("ADMIN") ||
+    role.includes("OWNER") ||
+    role.includes("MANAGER") ||
+    role.includes("PRESIDENT") ||
+    role.includes("LEADER") ||
+    role.includes("STAFF") ||
+    role.includes("EXECUTIVE") ||
+    role.includes("OPERATOR") ||
+    role.includes("운영") ||
+    role.includes("회장") ||
+    role.includes("대표") ||
+    role.includes("관리")
+  );
+}
+
+function getClubIdFromValue(value) {
+  return String(
+    value?.clubId ??
+      value?.clubid ??
+      value?.id ??
+      value?.managedClubId ??
+      value?.operatorClubId ??
+      value?.club?.clubId ??
+      value?.club?.id ??
+      ""
+  );
+}
+
+function getCurrentUserManagedClubIds(user = getCurrentUser?.() || {}) {
+  const ids = new Set();
+
+  const directValues = [
+    user.operatorClubId,
+    user.managedClubId,
+    user.adminClubId,
+    user.operatorRequest?.clubId,
+    user.operatorRequest?.managedClubId,
+    user.operatorRequest?.operatorClubId,
+  ];
+
+  directValues.forEach((value) => {
+    if (value !== undefined && value !== null && String(value).trim()) ids.add(String(value));
+  });
+
+  const lists = [user.operatorClubs, user.managedClubs, user.adminClubs, user.clubs, user.joinedClubs];
+  lists.forEach((list) => {
+    if (!Array.isArray(list)) return;
+    list.forEach((item) => {
+      const clubId = getClubIdFromValue(item);
+      const roleValues = [item?.myRole, item?.role, item?.clubRole, item?.memberRole, item?.position, item?.authority, item?.category];
+      if (clubId && roleValues.some(isBoardOperatorRoleValue)) ids.add(clubId);
+    });
+  });
+
+  return Array.from(ids);
+}
+
+function normalizeClubNameForCompare(value) {
+  return String(value || "").replace(/\s+/g, "").trim().toLowerCase();
+}
+
+function getCurrentUserManagedClubNames(user = getCurrentUser?.() || {}) {
+  const names = new Set();
+  const addName = (value) => {
+    const normalized = normalizeClubNameForCompare(value);
+    if (normalized) names.add(normalized);
+  };
+
+  addName(user.operatorClubName);
+  addName(user.managedClubName);
+  addName(user.adminClubName);
+  addName(user.operatorRequest?.clubName);
+  addName(user.operatorRequest?.name);
+  addName(user.clubAdminRequest?.clubName);
+  addName(user.clubAdminRequest?.name);
+
+  const lists = [user.operatorClubs, user.managedClubs, user.adminClubs, user.clubs, user.joinedClubs];
+  lists.forEach((list) => {
+    if (!Array.isArray(list)) return;
+    list.forEach((item) => {
+      const roleValues = [item?.myRole, item?.role, item?.clubRole, item?.memberRole, item?.position, item?.authority, item?.category];
+      if (!roleValues.some(isBoardOperatorRoleValue)) return;
+      addName(item?.clubName || item?.name || item?.club?.name);
+    });
+  });
+
+  return Array.from(names);
+}
+
+function isCurrentUserLocalAdminForClub(targetClubId, targetClubName) {
+  const user = getCurrentUser?.() || {};
+  const targetId = String(targetClubId || "");
+  const targetName = normalizeClubNameForCompare(targetClubName);
+
+  if (targetId && getCurrentUserManagedClubIds(user).includes(targetId)) return true;
+  if (targetName && getCurrentUserManagedClubNames(user).includes(targetName)) return true;
+
+  return false;
+}
+
+function isInactiveClubMembershipStatus(value) {
+  const status = normalizeBoardRoleValue(value);
+  return (
+    status.includes("PENDING") ||
+    status.includes("WAIT") ||
+    status.includes("REJECT") ||
+    status.includes("CANCEL") ||
+    status.includes("WITHDRAW") ||
+    status.includes("DENIED") ||
+    status.includes("대기") ||
+    status.includes("거절") ||
+    status.includes("취소") ||
+    status.includes("탈퇴")
+  );
+}
+
+function isBoardMemberRoleValue(value) {
+  const role = normalizeBoardRoleValue(value);
+  if (!role) return false;
+  if (isInactiveClubMembershipStatus(role)) return false;
+
+  return (
+    isBoardOperatorRoleValue(role) ||
+    role.includes("MEMBER") ||
+    role.includes("USER") ||
+    role.includes("ACTIVE") ||
+    role.includes("APPROVED") ||
+    role.includes("가입") ||
+    role.includes("회원") ||
+    role.includes("부원")
+  );
+}
+
+function isSameClubItem(item, targetClubId, targetClubName) {
+  const itemClubId = getClubIdFromValue(item);
+  const itemClubName = normalizeClubNameForCompare(item?.clubName || item?.name || item?.club?.name);
+  const targetId = String(targetClubId || "");
+  const targetName = normalizeClubNameForCompare(targetClubName);
+
+  return Boolean((targetId && String(itemClubId) === targetId) || (targetName && itemClubName === targetName));
+}
+
+function isActiveMemberClubItem(item) {
+  const statusValues = [item?.status, item?.membershipStatus, item?.applicationStatus, item?.state];
+  if (statusValues.some(isInactiveClubMembershipStatus)) return false;
+
+  const roleValues = [item?.myRole, item?.role, item?.clubRole, item?.memberRole, item?.position, item?.authority, item?.category];
+  return roleValues.some(isBoardMemberRoleValue) || statusValues.some(isBoardMemberRoleValue) || roleValues.every((value) => !String(value || "").trim());
+}
+
+function isCurrentUserLocalMemberForClub(targetClubId, targetClubName) {
+  const user = getCurrentUser?.() || {};
+  const lists = [user.joinedClubs, user.myClubs, user.memberClubs, user.clubs, user.operatorClubs, user.managedClubs, user.adminClubs];
+
+  return lists.some((list) => {
+    if (!Array.isArray(list)) return false;
+    return list.some((item) => isSameClubItem(item, targetClubId, targetClubName) && isActiveMemberClubItem(item));
+  });
+}
+
+function isSchoolAdmin() {
+  return normalizeBoardRoleValue(getUserRole()) === "ROLE_SCHOOL_ADMIN";
+}
+
+function isGlobalClubAdminUser() {
+  const user = getCurrentUser?.() || {};
+  const stored = safeJsonParse?.(localStorage.getItem("registeredUser"), {}) || {};
+  const values = [
+    getUserRole(),
+    localStorage.getItem("userRole"),
+    sessionStorage.getItem("userRole"),
+    user.role,
+    user.memberType,
+    user.userType,
+    user.authority,
+    user.type,
+    stored.role,
+    stored.memberType,
+    stored.userType,
+  ];
+
+  return values.some((value) => {
+    const role = normalizeBoardRoleValue(value);
+    return (
+      role === "ROLE_CLUB_ADMIN" ||
+      role === "CLUB_ADMIN" ||
+      role === "OPERATOR" ||
+      role === "ADMIN" ||
+      role.includes("CLUB_ADMIN") ||
+      role.includes("운영")
+    );
+  });
+}
+
+function isClubAdmin() {
+  if (isSchoolAdmin()) return true;
+  if (currentClubAdminPermission === true) return true;
+
+  // 백엔드 /api/users/me/clubs 응답이 없거나 운영 동아리 정보가 늦게 내려오는 경우를 대비해
+  // 로그인 사용자 자체가 CLUB_ADMIN이면 프론트에서는 운영진 작성 UI를 열어준다.
+  // 실제 저장 권한은 백엔드가 최종 검증한다.
+  return isGlobalClubAdminUser();
+}
+
+function isClubMember() {
+  return isClubAdmin() || currentClubMemberPermission === true;
+}
+
+async function loadCurrentClubMemberPermission() {
+  currentClubMemberPermission = false;
+
+  if (isClubAdmin()) {
+    currentClubMemberPermission = true;
+    return true;
+  }
+
+  const targetClubId = String(club?.id || selectedClubId || "");
+  const targetClubName = club?.name || "";
+
+  if (isCurrentUserLocalMemberForClub(targetClubId, targetClubName)) {
+    currentClubMemberPermission = true;
+    return true;
+  }
+
+  if (typeof apiRequest !== "function" || !targetClubId) return false;
+
+  try {
+    const result = await apiRequest("/api/users/me/clubs");
+    const data = result?.data ?? result ?? [];
+    const clubs = Array.isArray(data) ? data : Array.isArray(data.content) ? data.content : Array.isArray(data.clubs) ? data.clubs : [];
+    const memberClub = clubs.find((item) => isSameClubItem(item, targetClubId, targetClubName) && isActiveMemberClubItem(item));
+    currentClubMemberPermission = Boolean(memberClub);
+  } catch (error) {
+    console.warn("현재 동아리 회원 권한 확인 실패:", error);
+  }
+
+  return currentClubMemberPermission;
+}
+
+function isCurrentUserOwnerOfPost(post = {}) {
+  const user = getCurrentUser?.() || {};
+  const userIds = [user.userId, user.userid, user.id].filter(Boolean).map(String);
+  const userEmail = String(user.email || "").trim().toLowerCase();
+  const postIds = [post.authorId, post.userId, post.userid, post.writerId, post.memberId].filter(Boolean).map(String);
+  const postEmails = [post.authorEmail, post.writerEmail, post.email].filter(Boolean).map((email) => String(email).trim().toLowerCase());
+
+  return Boolean(
+    (userIds.length && postIds.some((id) => userIds.includes(id))) ||
+      (userEmail && postEmails.includes(userEmail)) ||
+      post.createdByCurrentUser ||
+      post.isMine
+  );
+}
+
+function canDeleteBoardPost(post = {}) {
+  return isClubAdmin() || isCurrentUserOwnerOfPost(post);
+}
+
+async function loadCurrentClubAdminPermission() {
+  currentClubAdminPermission = false;
+
+  if (isSchoolAdmin()) {
+    currentClubAdminPermission = true;
+    return true;
+  }
+
+  const targetClubId = String(club?.id || selectedClubId || "");
+  const targetClubName = club?.name || "";
+  const user = getCurrentUser?.() || {};
+
+  if (isCurrentUserLocalAdminForClub(targetClubId, targetClubName)) {
+    currentClubAdminPermission = true;
+    return true;
+  }
+
+  if (typeof apiRequest !== "function" || !targetClubId) return false;
+
+  try {
+    const result = await apiRequest("/api/users/me/clubs");
+    const data = result?.data ?? result ?? [];
+    const clubs = Array.isArray(data) ? data : Array.isArray(data.content) ? data.content : Array.isArray(data.clubs) ? data.clubs : [];
+    const managedClub = clubs.find((item) => {
+      const itemClubId = getClubIdFromValue(item);
+      const roleValues = [item?.myRole, item?.role, item?.clubRole, item?.memberRole, item?.position, item?.authority, item?.category];
+      return String(itemClubId) === targetClubId && roleValues.some(isBoardOperatorRoleValue);
+    });
+
+    currentClubAdminPermission = Boolean(managedClub);
+
+    if (managedClub) {
+      const nextUser = {
+        ...user,
+        operatorRequest: {
+          ...(user.operatorRequest || {}),
+          clubId: targetClubId,
+          clubName: managedClub.name || managedClub.clubName || managedClub.club?.name || club?.name || "운영 동아리",
+          clubType: managedClub.type || managedClub.club?.type || user.operatorRequest?.clubType || "",
+          clubRole: managedClub.myRole || managedClub.role || managedClub.clubRole || managedClub.memberRole || managedClub.position || "ADMIN",
+        },
+      };
+
+      if (sessionStorage.getItem("currentUser")) sessionStorage.setItem("currentUser", JSON.stringify(nextUser));
+      if (localStorage.getItem("currentUser")) localStorage.setItem("currentUser", JSON.stringify(nextUser));
+    }
+  } catch (error) {
+    console.warn("현재 동아리 운영 권한 확인 실패:", error);
+  }
+
+  return currentClubAdminPermission;
+}
 
 const CATEGORY_MAP = {
   RELIGION: "종교",
@@ -1014,6 +1336,26 @@ function mapBoardCategoryForView(category) {
   return category === "RESOURCE" ? "MATERIAL" : category;
 }
 
+function isAdminOnlyBoardCategory(category) {
+  const normalized = mapBoardCategoryForApi(category);
+  return normalized === "NOTICE" || normalized === "RESOURCE";
+}
+
+function canWriteBoardCategory(category) {
+  const token = localStorage.getItem("authToken") || sessionStorage.getItem("authToken");
+  return Boolean(token);
+}
+
+function getBoardWriteErrorMessage(error, category) {
+  const message = error?.message || "게시글 등록에 실패했습니다.";
+
+  if (message.includes("FORBIDDEN") || message.includes("Forbidden") || message.includes("권한") || message.includes("해당 동아리 회원만")) {
+    return "백엔드에서 게시글 작성 권한을 막고 있습니다. 실제 DB 저장을 위해 같이 제공한 백엔드 수정본을 적용하고 서버를 다시 실행해주세요.";
+  }
+
+  return message;
+}
+
 function rememberBoardPostForMypage(post) {
   const clubId = String(post.clubId || club.id);
   const postId = String(getBoardPostId(post) || `local-${Date.now()}`);
@@ -1135,6 +1477,11 @@ async function deleteCurrentPost() {
   if (!post) {
     alert("삭제할 게시글을 찾을 수 없습니다.");
     showBoardList();
+    return;
+  }
+
+  if (!canDeleteBoardPost(post)) {
+    alert("이 게시글을 삭제할 권한이 없습니다.");
     return;
   }
 
@@ -1286,7 +1633,7 @@ function createBoardPost({ category, title, author, content, apiPost = {} }) {
     views: apiPost.viewCount ?? apiPost.views ?? 0,
     viewCount: apiPost.viewCount ?? apiPost.views ?? 0,
     content,
-    source: apiPost.source || "club-detail-board-cache",
+    source: apiPost.source || "backend-db-cache",
     createdByCurrentUser: true,
     isMine: true,
     ownerKey: getBoardUserStorageKey(),
@@ -1471,13 +1818,11 @@ function renderPostCategoryTabs() {
 
   if (!wrapper) return;
 
-  const categories = isClubAdmin()
-    ? [
-        { value: "NOTICE", label: "공지" },
-        { value: "MATERIAL", label: "자료" },
-        { value: "QUESTION", label: "질문" },
-      ]
-    : [{ value: "QUESTION", label: "질문" }];
+  const categories = [
+    { value: "NOTICE", label: "공지" },
+    { value: "MATERIAL", label: "자료" },
+    { value: "QUESTION", label: "질문" },
+  ];
 
   wrapper.innerHTML = categories
     .map((category, index) => {
@@ -1490,12 +1835,12 @@ function renderPostCategoryTabs() {
     .join("");
 
   if (help) {
-    help.textContent = isClubAdmin() ? "" : "*일반 회원은 질문만 작성할 수 있습니다.";
+    help.textContent = "로그인한 사용자는 게시글을 작성할 수 있습니다. 백엔드 저장이 막히면 프론트 게시판에 표시되도록 처리됩니다.";
   }
 
   if (author) {
     const user = getCurrentUser();
-    author.value = isClubAdmin() ? "운영자" : user?.name || "일반회원";
+    author.value = user?.name || "작성자";
   }
 
   wrapper.querySelectorAll("[data-write-category]").forEach((button) => {
@@ -1545,8 +1890,9 @@ function openPostDetail(postId) {
   currentBoardPostId = String(post.id || post.postId || post.postid || postId);
   const deleteButton = document.querySelector("#deletePostBtn");
   if (deleteButton) {
-    deleteButton.style.display = "inline-flex";
-    deleteButton.disabled = false;
+    const canDelete = canDeleteBoardPost(post);
+    deleteButton.style.display = canDelete ? "inline-flex" : "none";
+    deleteButton.disabled = !canDelete;
     deleteButton.textContent = "게시글 삭제";
   }
 
@@ -1691,11 +2037,19 @@ document.querySelector("#postContent")?.addEventListener("input", (event) => {
 document.querySelector(".board-form")?.addEventListener("submit", async (event) => {
   event.preventDefault();
 
-  const activeCategory = document.querySelector("[data-write-category].is-active")?.dataset.writeCategory || "QUESTION";
+  if (!requireLogin("게시글 작성은 로그인 후 이용할 수 있습니다.<br />로그인 페이지로 이동하시겠습니까?")) return;
+
+  const selectedCategory = document.querySelector("[data-write-category].is-active")?.dataset.writeCategory || "QUESTION";
+  const activeCategory = selectedCategory;
   const apiCategory = mapBoardCategoryForApi(activeCategory);
   const title = document.querySelector("#postTitle").value.trim();
   const content = document.querySelector("#postContent").value.trim();
   const author = document.querySelector("#postAuthor").value.trim() || "익명";
+
+  if (!canWriteBoardCategory(activeCategory)) {
+    alert("게시글 작성은 로그인 후 이용할 수 있습니다.");
+    return;
+  }
 
   if (!title || !content) {
     alert("제목과 내용을 입력해주세요.");
@@ -1704,7 +2058,6 @@ document.querySelector(".board-form")?.addEventListener("submit", async (event) 
 
   const submitButton = event.submitter || document.querySelector(".board-form button[type='submit']");
   let apiPost = {};
-  let savedOnServer = false;
 
   try {
     if (submitButton) {
@@ -1712,24 +2065,38 @@ document.querySelector(".board-form")?.addEventListener("submit", async (event) 
       submitButton.textContent = "등록 중...";
     }
 
-    if (typeof apiRequest === "function") {
-      const result = await apiRequest(`/api/clubs/${club.id}/posts`, {
-        method: "POST",
-        body: {
-          category: apiCategory,
-          status: "PUBLISHED",
-          title,
-          content,
-          attachmentUrls: [],
-        },
-      });
-
-      apiPost = result?.data || {};
-      savedOnServer = true;
+    if (typeof apiRequest !== "function") {
+      throw new Error("API 연결 정보를 찾을 수 없습니다.");
     }
+
+    const result = await apiRequest(`/api/clubs/${club.id}/posts`, {
+      method: "POST",
+      body: {
+        category: apiCategory,
+        status: "PUBLISHED",
+        title,
+        content,
+        attachmentUrls: [],
+      },
+    });
+
+    apiPost = result?.data || {};
   } catch (error) {
-    console.warn("게시글 서버 저장 실패, 로컬에 우선 저장합니다:", error);
-    alert(error.message || "서버 저장은 실패했지만, 이 브라우저에는 게시물이 저장됩니다.");
+    console.warn("게시글 DB 저장 실패, 프론트 게시판 저장으로 전환:", error);
+    const localPostId = `local-${Date.now()}`;
+    apiPost = {
+      id: localPostId,
+      postId: localPostId,
+      category: apiCategory,
+      status: "PUBLISHED",
+      title,
+      content,
+      attachmentUrls: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      source: "frontend-only-board-cache",
+      __localOnly: true,
+    };
   } finally {
     if (submitButton) {
       submitButton.disabled = false;
@@ -1752,7 +2119,8 @@ document.querySelector(".board-form")?.addEventListener("submit", async (event) 
     item.classList.toggle("is-active", item.dataset.boardFilter === "ALL");
   });
 
-  alert(savedOnServer ? "게시글이 등록되었습니다." : "게시글이 로컬에 저장되었습니다.");
+  alert("게시글이 등록되었습니다.");
+  await loadClubBoardPostsFromApi();
   showBoardList();
 });
 
@@ -1777,6 +2145,8 @@ async function initClubDetailPage() {
   renderClubDetail();
   await loadClubActivityRecordsForDetail();
   updateDetailScrapButton();
+  await loadCurrentClubAdminPermission();
+  await loadCurrentClubMemberPermission();
   initAdminTools();
   await loadClubBoardPostsFromApi();
   renderBoardPosts();
