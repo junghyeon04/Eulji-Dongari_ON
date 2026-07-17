@@ -10152,3 +10152,614 @@ button.more-link {
     display: grid;
   }
 }
+
+/* Activity management / dynamic activity tab */
+.empty-activity-text {
+  color: #9ca3af;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.activity-photo-grid > .empty-activity-text {
+  grid-column: 1 / -1;
+  padding: 24px 0;
+}
+
+.activity-record-card {
+  cursor: default;
+}
+
+.activity-record-card .activity-photo,
+.activity-photo-grid img.activity-photo {
+  display: block;
+  width: 100%;
+  height: 150px;
+  object-fit: cover;
+  border-radius: 0;
+  background: #d9d9d9;
+}
+
+.activity-photo.is-empty {
+  background: #d9d9d9;
+}
+
+.activity-info-editor {
+  margin: 24px 0;
+  padding: 24px;
+  border: 1px solid #e5e7eb;
+  border-radius: 18px;
+  background: #fff;
+}
+
+.activity-info-form {
+  margin-top: 16px;
+}
+
+.activity-info-form textarea {
+  min-height: 120px;
+}
+
+/* 운영진 마이페이지 - 활동 기록 관리 */
+.operator-activity-manage-section {
+  gap: 24px;
+}
+
+.operator-activity-manage-head p,
+.operator-activity-box-head p {
+  margin-top: 8px;
+  color: #9b9b9b;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.operator-activity-box-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+.operator-activity-box-head.compact {
+  margin-bottom: 16px;
+}
+
+.operator-activity-info-form,
+.operator-activity-record-form {
+  display: grid;
+  gap: 16px;
+}
+
+.operator-activity-info-form label,
+.operator-activity-record-form label {
+  display: grid;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.operator-activity-info-form textarea,
+.operator-activity-record-form textarea,
+.operator-activity-record-form input {
+  width: 100%;
+  border: 1px solid #d9d9d9;
+  border-radius: 12px;
+  padding: 14px 16px;
+  font: inherit;
+  line-height: 1.5;
+  outline: none;
+  background: #fff;
+}
+
+.operator-activity-info-form textarea:focus,
+.operator-activity-record-form textarea:focus,
+.operator-activity-record-form input:focus {
+  border-color: #002f78;
+  box-shadow: 0 0 0 3px rgba(0, 47, 120, 0.08);
+}
+
+.operator-activity-manage-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 24px;
+}
+
+.operator-activity-record-list {
+  display: grid;
+  gap: 12px;
+}
+
+.operator-activity-record-item {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  padding: 14px;
+  border: 1px solid #e6e6e6;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.operator-activity-record-item img,
+.operator-activity-record-thumb {
+  width: 72px;
+  height: 58px;
+  border-radius: 10px;
+  object-fit: cover;
+  background: #ededed;
+}
+
+.operator-activity-record-thumb {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #002f78;
+  font-weight: 900;
+}
+
+.operator-activity-record-main {
+  min-width: 0;
+}
+
+.operator-activity-record-main strong {
+  display: block;
+  font-size: 16px;
+  font-weight: 900;
+  margin-bottom: 4px;
+}
+
+.operator-activity-record-main p,
+.operator-activity-record-main span {
+  display: block;
+  color: #8a8a8a;
+  font-size: 13px;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.operator-activity-record-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.operator-activity-record-actions button,
+.operator-activity-photo-item button {
+  border: 1px solid #cfcfcf;
+  background: #fff;
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.operator-activity-record-actions button:hover,
+.operator-activity-photo-item button:hover {
+  border-color: #002f78;
+  color: #002f78;
+}
+
+.operator-activity-record-actions button.danger,
+.operator-activity-photo-item button {
+  border-color: #f0b7b7;
+  color: #c0392b;
+}
+
+.operator-activity-photo-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.operator-activity-photo-item {
+  border: 1px solid #e6e6e6;
+  border-radius: 16px;
+  padding: 12px;
+  background: #fff;
+  display: grid;
+  gap: 10px;
+}
+
+.operator-activity-photo-item img {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  border-radius: 12px;
+  background: #eee;
+}
+
+.operator-activity-photo-item strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 900;
+  margin-bottom: 4px;
+}
+
+.operator-activity-photo-item p {
+  color: #9a9a9a;
+  font-size: 12px;
+  line-height: 1.35;
+  word-break: break-all;
+}
+
+@media (max-width: 900px) {
+  .operator-activity-manage-grid,
+  .operator-activity-photo-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .operator-activity-record-item {
+    grid-template-columns: 64px minmax(0, 1fr);
+  }
+
+  .operator-activity-record-actions {
+    grid-column: 1 / -1;
+    flex-direction: row;
+  }
+}
+
+/* 활동 관리 화면 개선 */
+.operator-activity-photo-view,
+.operator-activity-photo-title {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.operator-activity-photo-view img {
+  transition: transform 0.18s ease, filter 0.18s ease;
+}
+
+.operator-activity-photo-view:hover img {
+  transform: translateY(-2px);
+  filter: brightness(0.96);
+}
+
+.operator-activity-photo-title {
+  color: #111;
+  font-weight: 900;
+  line-height: 1.35;
+}
+
+.operator-activity-photo-title:hover {
+  color: #002f78;
+  text-decoration: underline;
+}
+
+.operator-activity-photo-item > span {
+  color: #b3b3b3;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.operator-activity-photo-item button.danger,
+.operator-activity-review-item button.danger {
+  border: 1px solid #f0b7b7;
+  color: #c0392b;
+  background: #fff;
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.operator-activity-review-list {
+  display: grid;
+  gap: 12px;
+}
+
+.operator-activity-review-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  border: 1px solid #e6e6e6;
+  border-radius: 16px;
+  padding: 16px;
+  background: #fff;
+}
+
+.operator-activity-review-item strong {
+  display: block;
+  font-size: 15px;
+  font-weight: 900;
+  margin-bottom: 6px;
+}
+
+.operator-activity-review-item p {
+  color: #777;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.activity-record-card.clickable {
+  cursor: pointer;
+}
+
+.activity-record-card.clickable:hover .activity-photo {
+  filter: brightness(0.96);
+}
+
+.activity-record-card.clickable h3:hover {
+  color: #002f78;
+  text-decoration: underline;
+}
+
+.operator-activity-record-form input[type="file"] {
+  padding: 12px;
+  background: #fff;
+}
+
+@media (max-width: 700px) {
+  .operator-activity-review-item {
+    flex-direction: column;
+  }
+}
+
+/* 활동 탭 최종 정리 */
+.activity-panel .muted-text {
+  display: none !important;
+}
+
+.timeline {
+  padding-left: 0 !important;
+  gap: 22px !important;
+}
+
+.timeline::before,
+.timeline div::before {
+  display: none !important;
+}
+
+.timeline div {
+  grid-template-columns: 120px 1fr !important;
+  gap: 34px !important;
+  align-items: start;
+}
+
+.timeline div.timeline-title-only {
+  grid-template-columns: 1fr !important;
+  padding-left: 0 !important;
+}
+
+.timeline div.timeline-title-only span {
+  display: block;
+  color: #002f78;
+}
+
+.activity-photo-grid {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 285px)) !important;
+  gap: 36px 32px !important;
+  align-items: start;
+}
+
+.activity-record-card {
+  width: 285px;
+  max-width: 100%;
+}
+
+.activity-record-card .activity-photo,
+.activity-photo-grid img.activity-photo,
+.activity-photo {
+  width: 100% !important;
+  height: 195px !important;
+  object-fit: cover;
+}
+
+.operator-activity-manage-grid {
+  grid-template-columns: 1fr !important;
+}
+
+.operator-activity-review-box,
+.operator-activity-review-list-box {
+  display: none !important;
+}
+
+.activity-photo-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.activity-photo-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.38);
+  backdrop-filter: blur(5px);
+}
+
+.activity-photo-modal-card {
+  position: relative;
+  z-index: 1;
+  width: min(520px, 92vw);
+  max-height: 86vh;
+  overflow: auto;
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
+}
+
+.activity-photo-modal-card img {
+  display: block;
+  width: 100%;
+  max-height: 320px;
+  object-fit: cover;
+  background: #f1f1f1;
+}
+
+.activity-photo-modal-body {
+  padding: 24px 26px 28px;
+}
+
+.activity-photo-modal-body h3 {
+  margin: 0 0 12px;
+  color: #000;
+  font-size: 24px;
+  font-weight: 900;
+}
+
+.activity-photo-modal-body p {
+  margin: 0;
+  color: #4b5563;
+  font-size: 16px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+
+.activity-photo-modal-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.62);
+  color: #fff;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.activity-modal-open {
+  overflow: hidden;
+}
+
+@media (max-width: 640px) {
+  .timeline div {
+    grid-template-columns: 86px 1fr !important;
+    gap: 18px !important;
+  }
+
+  .activity-photo-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .activity-record-card {
+    width: 100%;
+  }
+}
+
+/* 운영자 활동 사진 관리 카드 CSS 최종 수정 */
+.operator-activity-photo-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 240px)) !important;
+  gap: 20px !important;
+  align-items: start !important;
+}
+
+.operator-activity-photo-item {
+  width: 240px !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  border: 1px solid #e6e6e6 !important;
+  border-radius: 16px !important;
+  padding: 12px !important;
+  background: #fff !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 9px !important;
+  overflow: hidden !important;
+}
+
+.operator-activity-photo-item .operator-activity-photo-view {
+  display: block !important;
+  width: 100% !important;
+  height: 150px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  border-radius: 12px !important;
+  overflow: hidden !important;
+  box-shadow: none !important;
+  cursor: pointer !important;
+}
+
+.operator-activity-photo-item .operator-activity-photo-view img {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  aspect-ratio: auto !important;
+  object-fit: cover !important;
+  border-radius: 12px !important;
+  background: #eee !important;
+}
+
+.operator-activity-photo-item .operator-activity-photo-title {
+  display: block !important;
+  width: 100% !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: #111 !important;
+  text-align: left !important;
+  font-size: 16px !important;
+  font-weight: 900 !important;
+  line-height: 1.35 !important;
+  cursor: pointer !important;
+}
+
+.operator-activity-photo-item .operator-activity-photo-title:hover {
+  color: #002f78 !important;
+  text-decoration: underline !important;
+}
+
+.operator-activity-photo-item p {
+  margin: 0 !important;
+  min-height: 18px !important;
+  color: #777 !important;
+  font-size: 13px !important;
+  line-height: 1.45 !important;
+  word-break: break-word !important;
+  overflow: hidden !important;
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+}
+
+.operator-activity-photo-item > span {
+  color: #b3b3b3 !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+}
+
+.operator-activity-photo-item button.danger,
+.operator-activity-photo-item .danger {
+  width: 100% !important;
+  border: 1px solid #f0b7b7 !important;
+  color: #c0392b !important;
+  background: #fff !important;
+  border-radius: 10px !important;
+  padding: 10px 12px !important;
+  font-size: 14px !important;
+  font-weight: 900 !important;
+  text-align: center !important;
+  cursor: pointer !important;
+}
+
+.operator-activity-photo-item button.danger:hover,
+.operator-activity-photo-item .danger:hover {
+  background: #fff5f5 !important;
+  border-color: #e57373 !important;
+  color: #b71c1c !important;
+}
+
+@media (max-width: 700px) {
+  .operator-activity-photo-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .operator-activity-photo-item {
+    width: 100% !important;
+  }
+}

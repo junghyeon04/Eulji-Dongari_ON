@@ -2004,6 +2004,524 @@ async function loadOperatorRecentPosts() {
   }
 }
 
+
+/* =========================================================
+   운영진 활동 관리
+   - 백엔드 권한이 막혀도 로컬 저장으로 화면 시연 가능
+   - 상세 페이지 활동 탭과 같은 구성: 주요 활동 / 연간 활동 / 활동 사진 / 부원 후기
+========================================================= */
+const operatorActivityState = {
+  localData: null,
+  loadedClubId: "",
+};
+
+function getOperatorActivityRequestedClubId() {
+  return new URLSearchParams(window.location.search).get("clubId") || "";
+}
+
+function getOperatorActivityClub() {
+  const requestedClubId = getOperatorActivityRequestedClubId();
+  const clubs = [
+    ...(Array.isArray(mypageState.operatorClubs) ? mypageState.operatorClubs : []),
+    ...(Array.isArray(mypageState.joinedClubs) ? mypageState.joinedClubs : []),
+  ];
+
+  if (requestedClubId) {
+    const matched = clubs.find((club) => String(club.clubId || club.id || "") === String(requestedClubId));
+    if (matched) return matched;
+    return { clubId: requestedClubId, id: requestedClubId, name: "운영 동아리" };
+  }
+
+  return getPrimaryOperatorClubForLink();
+}
+
+function getOperatorActivityClubId() {
+  const club = getOperatorActivityClub();
+  return String(club?.clubId || club?.id || "");
+}
+
+function getOperatorActivityStorageKey(clubId = getOperatorActivityClubId()) {
+  return `operatorActivityData_${String(clubId || "unknown")}`;
+}
+
+function getEmptyOperatorActivityData() {
+  return {
+    major: "",
+    annual: "",
+    photos: [],
+    reviews: [],
+    updatedAt: "",
+  };
+}
+
+function getOperatorActivityLocalData(clubId = getOperatorActivityClubId()) {
+  const parsed = safeJsonParse(localStorage.getItem(getOperatorActivityStorageKey(clubId))) || {};
+  return {
+    ...getEmptyOperatorActivityData(),
+    ...parsed,
+    photos: Array.isArray(parsed.photos) ? parsed.photos : [],
+    reviews: Array.isArray(parsed.reviews) ? parsed.reviews : [],
+  };
+}
+
+function saveOperatorActivityLocalData(data, clubId = getOperatorActivityClubId()) {
+  const next = {
+    ...getEmptyOperatorActivityData(),
+    ...(data || {}),
+    photos: Array.isArray(data?.photos) ? data.photos : [],
+    reviews: Array.isArray(data?.reviews) ? data.reviews : [],
+    updatedAt: new Date().toISOString(),
+  };
+  localStorage.setItem(getOperatorActivityStorageKey(clubId), JSON.stringify(next));
+  operatorActivityState.localData = next;
+  return next;
+}
+
+function parseOperatorActivityInfoForForm(value) {
+  const text = String(value || "").trim();
+  const result = { major: [], annual: [] };
+  if (!text) return result;
+
+  let mode = "major";
+  text.split(/\r?\n/).forEach((rawLine) => {
+    const line = rawLine.trim();
+    if (!line) return;
+
+    const normalized = line.replaceAll(" ", "");
+    if (/^\[?주요활동\]?$/.test(normalized)) {
+      mode = "major";
+      return;
+    }
+    if (/^\[?연간활동\]?$/.test(normalized) || /^\[?연간활동정보\]?$/.test(normalized)) {
+      mode = "annual";
+      return;
+    }
+
+    if (mode === "annual") {
+      result.annual.push(line);
+    } else {
+      result.major.push(line.replace(/^[-•]\s*/, ""));
+    }
+  });
+
+  return result;
+}
+
+function buildOperatorActivityInfoText() {
+  const major = document.querySelector("#operatorMajorActivitiesInput")?.value.trim() || "";
+  const annual = document.querySelector("#operatorAnnualActivitiesInput")?.value.trim() || "";
+  const blocks = [];
+
+  if (major) blocks.push(`[주요 활동]\n${major}`);
+  if (annual) blocks.push(`[연간 활동]\n${annual}`);
+
+  return blocks.join("\n\n");
+}
+
+function createOperatorActivityId(prefix = "activity") {
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function renderOperatorActivityHeader(club) {
+  const clubId = String(club?.clubId || club?.id || "");
+  const clubName = club?.name || "운영 동아리";
+  const title = document.querySelector("#operatorActivityClubName");
+  const detailLink = document.querySelector("#operatorActivityOpenDetailBtn");
+
+  if (title) title.textContent = `${clubName} 활동 정보`;
+  if (detailLink) {
+    detailLink.href = clubId
+      ? `./club-detail.html?clubId=${encodeURIComponent(clubId)}&tab=activity`
+      : "./club-list.html";
+    detailLink.onclick = function (event) {
+      if (clubId) return;
+      event.preventDefault();
+      alert("운영 중인 동아리 정보를 찾을 수 없습니다.");
+    };
+  }
+}
+
+function renderOperatorActivityPhotos() {
+  const grid = document.querySelector("#operatorActivityPhotoGrid");
+  if (!grid) return;
+
+  const photos = operatorActivityState.localData?.photos || [];
+  if (!photos.length) {
+    grid.innerHTML = `<div class="mypage-empty-line">등록된 활동 사진이 없습니다.</div>`;
+    return;
+  }
+
+  grid.innerHTML = photos
+    .map((photo) => {
+      return `
+        <article class="operator-activity-photo-item" data-photo-id="${escapeHtml(photo.id)}">
+          <button type="button" class="operator-activity-photo-view" data-view-activity-photo="${escapeHtml(photo.id)}" aria-label="활동 사진 설명 보기">
+            <img src="${escapeHtml(photo.imageUrl)}" alt="${escapeHtml(photo.title || "활동 사진")}" />
+          </button>
+          <button type="button" class="operator-activity-photo-title" data-view-activity-photo="${escapeHtml(photo.id)}">${escapeHtml(photo.title || "활동 사진")}</button>
+          <p>${escapeHtml(photo.description || "").slice(0, 80)}</p>
+          <span>${escapeHtml(formatDate(photo.createdAt || ""))}</span>
+          <button type="button" class="danger" data-delete-activity-photo="${escapeHtml(photo.id)}">사진 삭제</button>
+        </article>
+      `;
+    })
+    .join("\n");
+}
+
+function renderOperatorActivityReviews() {
+  const list = document.querySelector("#operatorActivityReviewList");
+  if (!list) return;
+
+  const reviews = operatorActivityState.localData?.reviews || [];
+  if (!reviews.length) {
+    list.innerHTML = `<div class="mypage-empty-line">등록된 부원 후기가 없습니다.</div>`;
+    return;
+  }
+
+  list.innerHTML = reviews
+    .map((review) => {
+      return `
+        <article class="operator-activity-review-item" data-review-id="${escapeHtml(review.id)}">
+          <div>
+            <strong>${escapeHtml(review.author || "부원")}</strong>
+            <p>${escapeHtml(review.content || "")}</p>
+          </div>
+          <button type="button" class="danger" data-delete-activity-review="${escapeHtml(review.id)}">후기 삭제</button>
+        </article>
+      `;
+    })
+    .join("\n");
+}
+
+function closeOperatorActivityPhotoModal() {
+  const modal = document.querySelector(".activity-photo-modal");
+  if (modal) modal.remove();
+  document.body.classList.remove("activity-modal-open");
+}
+
+function showOperatorActivityPhotoDetail(photoId) {
+  const photo = (operatorActivityState.localData?.photos || []).find((item) => String(item.id) === String(photoId));
+  if (!photo) return;
+  closeOperatorActivityPhotoModal();
+
+  const modal = document.createElement("div");
+  modal.className = "activity-photo-modal";
+  modal.innerHTML = `
+    <div class="activity-photo-modal-backdrop" data-close-activity-modal></div>
+    <article class="activity-photo-modal-card" role="dialog" aria-modal="true" aria-label="활동 사진 설명">
+      <button type="button" class="activity-photo-modal-close" data-close-activity-modal aria-label="닫기">×</button>
+      ${photo.imageUrl ? `<img src="${escapeHtml(photo.imageUrl)}" alt="${escapeHtml(photo.title || "활동 사진")}" />` : ""}
+      <div class="activity-photo-modal-body">
+        <h3>${escapeHtml(photo.title || "활동 사진")}</h3>
+        <p>${escapeHtml(photo.description || "등록된 설명이 없습니다.")}</p>
+      </div>
+    </article>
+  `;
+
+  modal.addEventListener("click", (event) => {
+    if (event.target.closest("[data-close-activity-modal]")) {
+      closeOperatorActivityPhotoModal();
+    }
+  });
+
+  document.body.appendChild(modal);
+  document.body.classList.add("activity-modal-open");
+}
+
+function renderOperatorActivityAll() {
+  renderOperatorActivityPhotos();
+}
+
+async function loadOperatorActivityManagement() {
+  const summary = document.querySelector("#operatorActivityManageSummary");
+  const majorInput = document.querySelector("#operatorMajorActivitiesInput");
+  const annualInput = document.querySelector("#operatorAnnualActivitiesInput");
+  if (!summary) return;
+
+  if (!isOperatorUser()) {
+    summary.textContent = "운영진 권한이 있어야 활동을 관리할 수 있습니다.";
+    return;
+  }
+
+  const club = getOperatorActivityClub();
+  const clubId = String(club?.clubId || club?.id || "");
+  renderOperatorActivityHeader(club);
+
+  if (!clubId) {
+    summary.textContent = "운영 중인 동아리 정보를 찾을 수 없습니다.";
+    return;
+  }
+
+  summary.textContent = "활동 정보를 불러오는 중입니다.";
+  operatorActivityState.loadedClubId = clubId;
+  let localData = getOperatorActivityLocalData(clubId);
+
+  try {
+    const clubResult = await apiRequest(`/api/clubs/${clubId}`);
+    const clubData = getResponseData(clubResult, {});
+    const parsed = parseOperatorActivityInfoForForm(clubData.activityInfo || "");
+
+    if (!localData.major && parsed.major.length) localData.major = parsed.major.join("\n");
+    if (!localData.annual && parsed.annual.length) localData.annual = parsed.annual.join("\n");
+  } catch (error) {
+    console.warn("동아리 활동 정보 조회 실패, 로컬 데이터로 표시:", error);
+  }
+
+  operatorActivityState.localData = localData;
+
+  if (majorInput) majorInput.value = localData.major || "";
+  if (annualInput) annualInput.value = localData.annual || "";
+
+  summary.textContent = `${club?.name || "운영 동아리"} 활동을 관리할 수 있습니다.`;
+  renderOperatorActivityAll();
+}
+
+async function saveOperatorActivityInfo(event) {
+  event.preventDefault();
+
+  const clubId = getOperatorActivityClubId();
+  if (!clubId) {
+    alert("운영 중인 동아리 정보를 찾을 수 없습니다.");
+    return;
+  }
+
+  const button = event.currentTarget.querySelector("button[type='submit']");
+  if (button) button.disabled = true;
+
+  const current = getOperatorActivityLocalData(clubId);
+  const next = saveOperatorActivityLocalData(
+    {
+      ...current,
+      major: document.querySelector("#operatorMajorActivitiesInput")?.value.trim() || "",
+      annual: document.querySelector("#operatorAnnualActivitiesInput")?.value.trim() || "",
+    },
+    clubId
+  );
+
+  try {
+    await apiRequest(`/api/clubs/${clubId}`, {
+      method: "PATCH",
+      body: {
+        activityInfo: buildOperatorActivityInfoText(),
+      },
+    });
+  } catch (error) {
+    console.warn("백엔드 활동 정보 저장 실패, 로컬 저장으로 대체:", error);
+  } finally {
+    if (button) button.disabled = false;
+  }
+
+  operatorActivityState.localData = next;
+  alert("활동 정보가 저장되었습니다.");
+}
+
+function readOperatorActivityImageFile(file) {
+  return new Promise((resolve, reject) => {
+    if (!file) {
+      reject(new Error("파일을 찾을 수 없습니다."));
+      return;
+    }
+
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+    if (!allowedTypes.includes(file.type)) {
+      reject(new Error("JPG, PNG, WebP 파일만 업로드할 수 있습니다."));
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      reject(new Error("사진은 10MB 이하만 업로드할 수 있습니다."));
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("사진 파일을 읽지 못했습니다."));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("사진 파일을 불러오지 못했습니다."));
+      img.onload = () => {
+        const maxWidth = 1200;
+        const scale = Math.min(1, maxWidth / img.width);
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/jpeg", 0.82));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function saveOperatorActivityPhoto(event) {
+  event.preventDefault();
+
+  const clubId = getOperatorActivityClubId();
+  if (!clubId) {
+    alert("운영 중인 동아리 정보를 찾을 수 없습니다.");
+    return;
+  }
+
+  const titleInput = document.querySelector("#operatorActivityPhotoTitle");
+  const descInput = document.querySelector("#operatorActivityPhotoDescription");
+  const fileInput = document.querySelector("#operatorActivityPhotoFiles");
+  const title = titleInput?.value.trim() || "";
+  const description = descInput?.value.trim() || "";
+  const files = Array.from(fileInput?.files || []);
+
+  if (!title || !description || !files.length) {
+    alert("사진 제목, 설명, 사진 파일을 모두 입력해주세요.");
+    return;
+  }
+
+  const button = event.currentTarget.querySelector("button[type='submit']");
+  if (button) button.disabled = true;
+
+  try {
+    const photos = [];
+    for (const [index, file] of files.entries()) {
+      const imageUrl = await readOperatorActivityImageFile(file);
+      photos.push({
+        id: createOperatorActivityId("photo"),
+        title: files.length > 1 ? `${title} ${index + 1}` : title,
+        description,
+        imageUrl,
+        createdAt: new Date().toISOString(),
+      });
+    }
+
+    const current = getOperatorActivityLocalData(clubId);
+    const next = saveOperatorActivityLocalData(
+      {
+        ...current,
+        photos: [...photos, ...(current.photos || [])],
+      },
+      clubId
+    );
+
+    operatorActivityState.localData = next;
+    renderOperatorActivityPhotos();
+
+    if (titleInput) titleInput.value = "";
+    if (descInput) descInput.value = "";
+    if (fileInput) fileInput.value = "";
+
+    alert("활동 사진이 추가되었습니다.");
+  } catch (error) {
+    alert(error.message || "활동 사진 추가에 실패했습니다.");
+  } finally {
+    if (button) button.disabled = false;
+  }
+}
+
+function deleteOperatorActivityPhoto(photoId) {
+  const clubId = getOperatorActivityClubId();
+  if (!clubId || !photoId) return;
+  if (!confirm("이 활동 사진을 삭제할까요?")) return;
+
+  const current = getOperatorActivityLocalData(clubId);
+  const next = saveOperatorActivityLocalData(
+    {
+      ...current,
+      photos: (current.photos || []).filter((photo) => String(photo.id) !== String(photoId)),
+    },
+    clubId
+  );
+
+  operatorActivityState.localData = next;
+  renderOperatorActivityPhotos();
+  alert("활동 사진이 삭제되었습니다.");
+}
+
+function saveOperatorActivityReview(event) {
+  event.preventDefault();
+
+  const clubId = getOperatorActivityClubId();
+  if (!clubId) {
+    alert("운영 중인 동아리 정보를 찾을 수 없습니다.");
+    return;
+  }
+
+  const authorInput = document.querySelector("#operatorActivityReviewAuthor");
+  const contentInput = document.querySelector("#operatorActivityReviewContent");
+  const author = authorInput?.value.trim() || "";
+  const content = contentInput?.value.trim() || "";
+
+  if (!author || !content) {
+    alert("작성자와 후기 내용을 입력해주세요.");
+    return;
+  }
+
+  const current = getOperatorActivityLocalData(clubId);
+  const next = saveOperatorActivityLocalData(
+    {
+      ...current,
+      reviews: [
+        {
+          id: createOperatorActivityId("review"),
+          author,
+          content,
+          createdAt: new Date().toISOString(),
+        },
+        ...(current.reviews || []),
+      ],
+    },
+    clubId
+  );
+
+  operatorActivityState.localData = next;
+  renderOperatorActivityReviews();
+
+  if (authorInput) authorInput.value = "";
+  if (contentInput) contentInput.value = "";
+
+  alert("부원 후기가 추가되었습니다.");
+}
+
+function deleteOperatorActivityReview(reviewId) {
+  const clubId = getOperatorActivityClubId();
+  if (!clubId || !reviewId) return;
+  if (!confirm("이 부원 후기를 삭제할까요?")) return;
+
+  const current = getOperatorActivityLocalData(clubId);
+  const next = saveOperatorActivityLocalData(
+    {
+      ...current,
+      reviews: (current.reviews || []).filter((review) => String(review.id) !== String(reviewId)),
+    },
+    clubId
+  );
+
+  operatorActivityState.localData = next;
+  renderOperatorActivityReviews();
+  alert("부원 후기가 삭제되었습니다.");
+}
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") closeOperatorActivityPhotoModal();
+});
+
+function bindOperatorActivityManagementEvents() {
+  document.querySelector("#operatorActivityInfoForm")?.addEventListener("submit", saveOperatorActivityInfo);
+  document.querySelector("#operatorActivityPhotoForm")?.addEventListener("submit", saveOperatorActivityPhoto);
+  document.querySelector("#operatorActivityRefreshBtn")?.addEventListener("click", loadOperatorActivityManagement);
+
+  document.querySelector("#operatorActivityPhotoGrid")?.addEventListener("click", (event) => {
+    const viewButton = event.target.closest("[data-view-activity-photo]");
+    const deleteButton = event.target.closest("[data-delete-activity-photo]");
+
+    if (viewButton) {
+      showOperatorActivityPhotoDetail(viewButton.dataset.viewActivityPhoto);
+      return;
+    }
+
+    if (deleteButton) {
+      deleteOperatorActivityPhoto(deleteButton.dataset.deleteActivityPhoto);
+    }
+  });
+}
+
 function setActiveTab(tabName) {
   if (String(tabName || "").startsWith("operator-") && !isOperatorUser()) {
     tabName = "dashboard";
@@ -2044,6 +2562,10 @@ function setActiveTab(tabName) {
     renderOperatorApplicationManagement();
     renderOperatorRecentPosts();
     renderOperatorBoardManagement();
+  }
+
+  if (tabName === "operator-activity-records") {
+    loadOperatorActivityManagement();
   }
 }
 
@@ -2371,6 +2893,7 @@ async function initMyPage() {
   renderOperatorApplicationManagement();
   renderOperatorRecentPosts();
   renderOperatorBoardManagement();
+  bindOperatorActivityManagementEvents();
 
   const initialTab = getInitialMyPageTab();
   setActiveTab(initialTab);
